@@ -1,6 +1,7 @@
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 
 public class CardTest {
@@ -10,7 +11,8 @@ public class CardTest {
         Card sc = new SpellCard (50, Element.FIRE);
         MonsterCard kraken = new Kraken (40, Element.WATER);
 
-        assertFalse("SpellCard shouldn't be equal to Kraken", sc.equals(kraken));
+        //"SpellCard shouldn't be equal to Kraken"
+        assertFalse(sc.equals(kraken));
     }
 
     @Test
@@ -19,7 +21,8 @@ public class CardTest {
         Card sc = new SpellCard (50, Element.FIRE);
         MonsterCard wizard = new Wizard (40, Element.NORMAL);
 
-        assertFalse("SpellCard shouldn't be equal to Wizard", sc.equals(wizard));
+        //"SpellCard shouldn't be equal to Wizard"
+        assertFalse(sc.equals(wizard));
     }
 
     @Test
@@ -28,7 +31,8 @@ public class CardTest {
         MonsterCard kraken = new Kraken (50, Element.WATER);
         MonsterCard wizard = new Wizard (70, Element.NORMAL);
 
-        assertFalse("Kraken shouldn't be equal to Wizard", kraken.equals(wizard));
+        //"Kraken shouldn't be equal to Wizard"
+        assertFalse(kraken.equals(wizard));
     }
 
     @Test
@@ -37,7 +41,8 @@ public class CardTest {
         MonsterCard dragon = new Dragon (80, Element.FIRE);
         MonsterCard dragon2 = new Dragon (65, Element.WATER);
 
-        assertFals("Dragon is not equal to Dragon with different stats", dragon.equals(dragon2));
+        //"Dragon is not equal to Dragon with different stats"
+        assertFalse(dragon.equals(dragon2));
     }
 
 }
