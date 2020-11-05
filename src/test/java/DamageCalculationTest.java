@@ -1,4 +1,4 @@
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -16,8 +16,8 @@ public class DamageCalculationTest {
     private static Ork ork;
 
 
-    @BeforeEach
-    void beforeEach() {
+    @BeforeAll
+    static void beforeAll() {
         scWater = new SpellCard (60, Element.WATER);
         goblin = new Goblin (75, Element.NORMAL);
         knight = new Knight (100, Element.NORMAL);
