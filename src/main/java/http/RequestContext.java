@@ -8,6 +8,7 @@ import java.util.Map;
 public class RequestContext {
 
     public final static String httpVersion = "HTTP/1.1";
+    private HashMap<String, String> header = new HashMap<>();
     public final static Map<Integer, String> responseCodes = Map.ofEntries(
             Map.entry(200, "OK"),
             Map.entry(201, "Created"),
@@ -35,7 +36,6 @@ public class RequestContext {
                 System.lineSeparator();
     }
 
-    private HashMap<String, String> header = new HashMap<>();
 
     public String getValue(String key) {
         return header.get(key);

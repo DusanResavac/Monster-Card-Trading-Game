@@ -11,18 +11,13 @@ public class HTTPServer {
         HTTPServer server = new HTTPServer(80);
     }
 
-    protected static int currentId = 4;
+    public static int currentId = 0;
     protected static HashMap<Integer, String> messages = new HashMap<>();
 
     public HTTPServer (int port) {
         try {
-
             ServerSocket listener = new ServerSocket();
             listener.bind(new InetSocketAddress(port));
-            setValue(1, "Erste Nachricht");
-            setValue(2, "Zweite Nachricht");
-            setValue(3, "Dritte Nachricht");
-            setValue(4, "Vierte Nachricht");
             System.out.println("Listening for Connections on port " + port + " ...");
             while (true) {
                 Socket s = listener.accept();
