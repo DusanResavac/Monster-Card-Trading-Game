@@ -2,32 +2,14 @@ package http;
 
 import java.io.*;
 import java.net.Socket;
-import java.util.Arrays;
-import java.util.HashMap;
 
 public class Connection extends Thread {
 
     private Socket s;
-    private int currentId = 4;
-    private static HashMap<Integer, String> messages = new HashMap<>();
+
 
     public Connection (Socket s) {
         this.s = s;
-        setValue(1, "Erste Nachricht");
-        setValue(2, "Zweite Nachricht");
-        setValue(3, "Dritte Nachricht");
-        setValue(4, "Vierte Nachricht");
-    }
-
-    public void setValue (Integer key, String value) {
-        if (key == null) {
-            return;
-        }
-        messages.put(key, value);
-    }
-
-    public String getValue (Integer key) {
-        return messages.get(key);
     }
 
     public void run() {
@@ -38,8 +20,8 @@ public class Connection extends Thread {
             if (line == null) {
                 return;
             }
+            System.out.println("New HTTP-Request: \r\n=======================");
             RequestContext rc = new RequestContext();
-
             String[] parts = line.split(" ");
             // first one is method
             rc.setValue("method", parts[0].trim());
@@ -67,7 +49,7 @@ public class Connection extends Thread {
 
                 if (line.equals(System.lineSeparator()) || line.equals("")) {
                     //System.out.println("Empty line");
-                    System.out.println(rc);
+                    //System.out.println(rc);
                     handleRequest (rc, in, out);
 
                     break;
@@ -80,41 +62,75 @@ public class Connection extends Thread {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        try {
+            s.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        System.out.println("=======================\r\n");
     }
 
-    private synchronized void handleRequest(RequestContext rc, BufferedReader in, BufferedWriter out) throws IOException {
+
+
+    private synchronized boolean handleRequest(RequestContext rc, BufferedReader in, BufferedWriter out) throws IOException {
         String method = rc.getValue("method");
         String[] parts = rc.getValue("url").split("/");
-        
-        out.write("HTTP/1.1");
-        out.flush();
 
         // if url is missing messages, ignore request
         if (parts.length == 0 || !parts[1].equalsIgnoreCase("messages")) {
-            return;
+            String error = "Couldn't process request. Did you forget to add \"/messages\" ?";
+            System.out.println(error);
+            RequestContext.writeToSocket(400, error, out);
+            return false;
         }
 
+        // Parts looks like this, when someone requests a specific message [, messages,  2]
         if (method.equals("GET")) {
-            // Parts looks like this, when someone requests a specific message [, messages,  2]
-            System.out.println("parts:" + Arrays.toString(parts));
-            if (parts[1].equals("messages")) {
-                // print specific message
-                if (parts.length > 2) {
-                    try {
-                        System.out.println(getValue(Integer.parseInt(parts[2].trim())));
-                    } catch (NumberFormatException e) {
-                        e.printStackTrace();
+            // print specific message
+            if (parts.length > 2) {
+                System.out.println(s.getRemoteSocketAddress().toString() + " - Reading message...");
+                try {
+                    String message = HTTPServer.getValue(Integer.parseInt(parts[2]));
+                    if (message != null) {
+                        RequestContext.writeToSocket(200, message, out);
+                        System.out.println(message);
+                        return true;
                     }
-                    // print all messages
-                } else {
-                    for (Integer key : messages.keySet()) {
-                        System.out.println(messages.get(key));
-                    }
+
+                    String error = "Couldn't find stated message.";
+                    RequestContext.writeToSocket(404, error, out);
+                    System.err.println(error);
+                    return false;
+
+
+                } catch (NumberFormatException e) {
+                    System.err.println("Entered ID <<" + parts[2] + ">> couldn't be converted to number.");
+                    String error = "Invalid messageID entered. A number was expected.";
+                    RequestContext.writeToSocket(400, error, out);
+                    return false;
                 }
+                // print all messages
+            } else {
+                System.out.println(s.getRemoteSocketAddress().toString() + " - Reading messages...");
+                StringBuilder responseBody = new StringBuilder();
+
+                for (Integer key : HTTPServer.messages.keySet()) {
+                    responseBody.append("------------")
+                            .append(System.lineSeparator())
+                            .append("ID: ").append(key).append(" - ")
+                            .append(HTTPServer.getValue(key))
+                            .append(System.lineSeparator());
+                }
+                responseBody.append("------------");
+
+                System.out.println(responseBody);
+                RequestContext.writeToSocket(200, responseBody.toString(), out);
+                return true;
             }
         }
 
         if (method.equals("POST")) {
+            System.out.println(s.getRemoteSocketAddress().toString() + " - Posting message...");
             StringBuilder message = new StringBuilder();
             int counter = 0;
             try {
@@ -122,17 +138,100 @@ public class Connection extends Thread {
                     message.append((char) in.read());
                     counter++;
                 }
-                currentId++;
-                messages.put(currentId, message.toString());
-                out.write(currentId);
-                out.flush();
+
+                HTTPServer.currentId++;
+                String responseBody = "ID: " + HTTPServer.currentId;
+                System.out.println(message.toString());
+                HTTPServer.setValue(HTTPServer.currentId, message.toString());
+
+                RequestContext.writeToSocket(200, responseBody, out);
+                return true;
             } catch (Exception e) {
                 e.printStackTrace();
+                return false;
             }
 
         }
 
+        if (method.equals("PUT")) {
+            // Falls keine ID angegeben wurde
+            if (parts.length < 3) {
+                String error = "Expected messageID couldn't be retrieved. Please append an ID to the request.";
+                RequestContext.writeToSocket(400, error, out);
+                return false;
+            }
 
+            System.out.println(s.getRemoteSocketAddress().toString() + " - Updating message...");
+
+            try {
+                Integer messageID = Integer.parseInt(parts[2]);
+
+                if (HTTPServer.getValue(messageID) == null) {
+                    System.err.println("Update attempt on non-existent message.");
+                    RequestContext.writeToSocket(404, "Entered messageID doesn't exist. Please use /messages to get receive all messages.", out);
+                    return false;
+                }
+
+                StringBuilder newMessage = new StringBuilder();
+                int counter = 0;
+
+
+                while (counter < Integer.parseInt(rc.getValue("Content-Length"))) {
+                    newMessage.append((char) in.read());
+                    counter++;
+                }
+
+                System.out.println("Old message: " + System.lineSeparator());
+                System.out.println(HTTPServer.getValue(messageID));
+                System.out.println("New message: " + System.lineSeparator());
+                System.out.println(newMessage.toString());
+
+                HTTPServer.setValue(messageID, newMessage.toString());
+                RequestContext.writeToSocket(200, "OK", out);
+                return true;
+            } catch (NumberFormatException e) {
+                System.err.println("Entered ID <<" + parts[2] + ">> couldn't be converted to number.");
+
+                String error = "Invalid messageID entered. A number was expected.";
+                RequestContext.writeToSocket(400, error, out);
+                return false;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+
+        if (method.equals("DELETE")) {
+            if (parts.length < 3) {
+                String error = "Expected messageID couldn't be retrieved. Please append an ID to the request.";
+                RequestContext.writeToSocket(400, error, out);
+                return false;
+            }
+
+            System.out.println(s.getRemoteSocketAddress().toString() + " - Deleting message...");
+
+            try {
+                Integer messageID = Integer.parseInt(parts[2]);
+
+                if (HTTPServer.getValue(messageID) == null) {
+                    System.err.println("Delete attempt on non-existent message.");
+                    RequestContext.writeToSocket(404, "Specified message doesn't exist.", out);
+                    return false;
+                }
+                HTTPServer.removeEntry(messageID);
+                System.out.println("Message " +  messageID + " deleted.");
+                RequestContext.writeToSocket(200, "OK", out);
+                return true;
+            } catch (NumberFormatException e) {
+                System.err.println("Entered ID <<" + parts[2] + ">> couldn't be converted to number.");
+
+                String error = "Invalid messageID entered. A number was expected.";
+                RequestContext.writeToSocket(400, error, out);
+                return false;
+            }
+        }
+
+        return false;
     }
 
 }
