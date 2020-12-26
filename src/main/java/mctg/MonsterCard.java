@@ -1,3 +1,5 @@
+package mctg;
+
 public abstract class MonsterCard extends Card implements DamageCalculation {
 
     public static void main(String[] args) {
@@ -18,7 +20,7 @@ public abstract class MonsterCard extends Card implements DamageCalculation {
     }
 
     public double calculateIncomingDamage(Card card) {
-        // consider Element types to calculate damage if the other card is a SpellCard
+        // consider mctg.Element types to calculate damage if the other card is a mctg.SpellCard
         if (card instanceof SpellCard) {
             return card.getDamage() * DamageMultiplier.getElementMultiplier(card.getElement(), getElement());
         }

@@ -1,4 +1,4 @@
-package http;
+package mctg.http;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -29,18 +29,5 @@ public class HTTPServer {
             e.printStackTrace();
         }
     }
-
-    public static void setValue (Integer key, String value) {
-        if (key == null) {
-            return;
-        }
-        messages.put(key, value);
-    }
-
-    public static String getValue (Integer key) {
-        return messages.get(key);
-    }
-
-    public static void removeEntry(Integer key) { messages.remove(key); }
 
 }

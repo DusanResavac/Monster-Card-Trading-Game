@@ -1,4 +1,4 @@
-package http;
+package mctg.http;
 
 import java.io.IOException;
 import java.io.InputStream;

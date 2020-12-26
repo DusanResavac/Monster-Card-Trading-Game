@@ -1,12 +1,14 @@
-public class Kraken extends MonsterCard {
+package mctg;
 
-    public Kraken(double damage, Element element) {
+public class Wizard extends MonsterCard {
+
+    public Wizard(double damage, Element element) {
         super(damage, element);
     }
 
+    @Override
     public double calculateIncomingDamage(Card card) {
-        if (card instanceof SpellCard) {
-            // impudent >:(
+        if (card instanceof Ork) {
             return 0;
         }
 

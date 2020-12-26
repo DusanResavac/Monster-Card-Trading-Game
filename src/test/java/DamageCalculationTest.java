@@ -1,3 +1,4 @@
+import mctg.*;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,41 +31,41 @@ public class DamageCalculationTest {
     @Test
     @DisplayName("Calculating Damage | Def: various MonsterCards, Atk: various MonsterCards")
     void calcIncomingDamage_mc_mc() {
-        // Goblin (x, y) against Dragon (a, b) -> Dragon should win (Goblin deals 0 Damage)
-        //"Dragon should deal more Damage (Goblin to scared)"
+        // mctg.Goblin (x, y) against mctg.Dragon (a, b) -> mctg.Dragon should win (mctg.Goblin deals 0 Damage)
+        //"mctg.Dragon should deal more Damage (mctg.Goblin to scared)"
         assertTrue(goblin.calculateIncomingDamage(dragon) > dragon.calculateIncomingDamage(goblin));
 
-        // Goblin against Wizard -> Goblin should win (Elements are ignored)
-        //"Wizard should receive more damage"
+        // mctg.Goblin against mctg.Wizard -> mctg.Goblin should win (Elements are ignored)
+        //"mctg.Wizard should receive more damage"
         assertTrue(goblin.calculateIncomingDamage(wizard) < wizard.calculateIncomingDamage(goblin));
 
-        // Dragon against FireElf -> FireElf should win (FireElf dodges attacks)
-        //"Dragon should receive more damage"
+        // mctg.Dragon against mctg.FireElf -> mctg.FireElf should win (mctg.FireElf dodges attacks)
+        //"mctg.Dragon should receive more damage"
         assertTrue(dragon.calculateIncomingDamage(fireElf) > fireElf.calculateIncomingDamage(dragon));
     }
 
     @Test
-    @DisplayName("Calculating Damage | Def: Spellcard, Atk: Goblin, Dragon, FireElf, Knight, Spellcard(Fire)")
+    @DisplayName("Calculating Damage | Def: Spellcard, Atk: mctg.Goblin, mctg.Dragon, mctg.FireElf, mctg.Knight, Spellcard(Fire)")
     void calcIncomingDamage_sc_mcs () {
         Kraken kraken = new Kraken (50, Element.WATER);
 
-        // Spellcard (60, Water) against Dragon (80, Water) -> Dragon should Win
+        // Spellcard (60, Water) against mctg.Dragon (80, Water) -> mctg.Dragon should Win
         //"SpellCardWater should receive more Damage than the dragon"
         assertTrue(scWater.calculateIncomingDamage(dragon) > dragon.calculateIncomingDamage(scWater));
 
-        // Spellcard (60, Water) against Knight (100, Normal) -> SpellCard should Win
-        //"Knight should receive max possible damage (drowns)"
+        // Spellcard (60, Water) against mctg.Knight (100, Normal) -> mctg.SpellCard should Win
+        //"mctg.Knight should receive max possible damage (drowns)"
         assertTrue(scWater.calculateIncomingDamage(knight) < knight.calculateIncomingDamage(scWater));
 
-        // Spellcard (60, Water) against Goblin (75, Normal) -> Goblin should Win
-        //"SpellCardWater should receive more Damage than the Goblin"
+        // Spellcard (60, Water) against mctg.Goblin (75, Normal) -> mctg.Goblin should Win
+        //"SpellCardWater should receive more Damage than the mctg.Goblin"
         assertTrue(scWater.calculateIncomingDamage(goblin) > goblin.calculateIncomingDamage(scWater));
 
-        // Spellcard (60, Water) against FireElf (65, Fire) -> SpellCard should Win
-        //"FireElf should receive more Damage than the SpellCardWater"
+        // Spellcard (60, Water) against mctg.FireElf (65, Fire) -> mctg.SpellCard should Win
+        //"mctg.FireElf should receive more Damage than the SpellCardWater"
         assertTrue(scWater.calculateIncomingDamage(fireElf) < fireElf.calculateIncomingDamage(scWater));
 
-        // Spellcard (60, Water) against Kraken (50, Water) -> Kraken should Win
+        // Spellcard (60, Water) against mctg.Kraken (50, Water) -> mctg.Kraken should Win
         //"SpellCardWater should receive more Damage than the kraken"
         assertTrue(scWater.calculateIncomingDamage(kraken) > kraken.calculateIncomingDamage(scWater));
     }
@@ -73,7 +74,7 @@ public class DamageCalculationTest {
     @DisplayName("Calculating Damage | Def: various Spellcards, Atk: various Spellcards")
     void calcIncomingDamage_sc_sc() {
         SpellCard scFire = new SpellCard (70, Element.FIRE);
-        SpellCard scNormal = new SpellCard (40, Element.NORMAL);
+        SpellCard scNormal = new SpellCard(40, Element.NORMAL);
         SpellCard scWater2 = new SpellCard (160, Element.WATER);
 
         // (160, Water) against (70, Fire) -> (160, Water) should Win

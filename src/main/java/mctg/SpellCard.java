@@ -1,3 +1,5 @@
+package mctg;
+
 public class SpellCard extends Card implements DamageCalculation {
 
     public SpellCard(double damage, Element element) {

@@ -1,3 +1,4 @@
+package mctg;
 
 public class DamageMultiplier {
 

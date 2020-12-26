@@ -1,10 +1,8 @@
-package http;
+package mctg.http;
 
-import javax.net.ssl.SSLSocketFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
 

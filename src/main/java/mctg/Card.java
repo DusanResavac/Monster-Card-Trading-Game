@@ -1,3 +1,5 @@
+package mctg;
+
 import lombok.Getter;
 import lombok.Setter;
 

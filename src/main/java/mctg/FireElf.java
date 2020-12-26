@@ -1,13 +1,14 @@
+package mctg;
 
-public class Dragon extends MonsterCard {
+public class FireElf extends MonsterCard {
 
-    public Dragon(double damage, Element element) {
+    public FireElf(double damage, Element element) {
         super(damage, element);
     }
 
     @Override
     public double calculateIncomingDamage(Card card) {
-        if (card instanceof Goblin) {
+        if (card instanceof Dragon) {
             return 0;
         }
 

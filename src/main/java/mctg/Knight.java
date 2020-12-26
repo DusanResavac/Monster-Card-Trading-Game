@@ -1,3 +1,5 @@
+package mctg;
+
 public class Knight extends MonsterCard {
 
     public Knight(double damage, Element element) {
