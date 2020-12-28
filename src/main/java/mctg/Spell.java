@@ -1,9 +1,9 @@
 package mctg;
 
-public class SpellCard extends Card implements DamageCalculation {
+public class Spell extends Card implements DamageCalculation {
 
-    public SpellCard(double damage, Element element) {
-        super(damage, element);
+    public Spell(double damage, Element element, String id) {
+        super(damage, element, id);
     }
 
 

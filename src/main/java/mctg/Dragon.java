@@ -2,8 +2,8 @@ package mctg;
 
 public class Dragon extends MonsterCard {
 
-    public Dragon(double damage, Element element) {
-        super(damage, element);
+    public Dragon(double damage, Element element, String id) {
+        super(damage, element, id);
     }
 
     @Override

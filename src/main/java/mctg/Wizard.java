@@ -2,8 +2,8 @@ package mctg;
 
 public class Wizard extends MonsterCard {
 
-    public Wizard(double damage, Element element) {
-        super(damage, element);
+    public Wizard(double damage, Element element, String id) {
+        super(damage, element, id);
     }
 
     @Override

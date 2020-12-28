@@ -1,6 +1,5 @@
 drop table if exists trading_area;
 drop table if exists stack_card;
-drop table if exists deck_card;
 drop table if exists package_card;
 drop table if exists package;
 drop table if exists card;
@@ -15,7 +14,9 @@ create table users (
     password varchar(255) not null,
     name varchar(255),
     bio varchar(500),
-    image varchar(255)
+    image varchar(255),
+    coins integer,
+    elo double precision
 );
 
 create table session (
@@ -51,10 +52,11 @@ create table stack_card (
     card_id varchar(255),
     user_id integer,
     locked bool,
+    inDeck bool,
     foreign key (card_id) references card (id) on delete cascade,
     foreign key (user_id) references users (id) on delete cascade
 );
-
+/*
 create table deck_card (
     id serial primary key,
     card_id varchar(255),
@@ -62,7 +64,7 @@ create table deck_card (
     foreign key (card_id) references card (id) on delete cascade ,
     foreign key (user_id) references users (id) on delete cascade
 
-);
+);*/
 
 create table trading_area (
     id varchar(255) primary key,
@@ -77,13 +79,31 @@ create table trading_area (
 
 delete from trading_area;
 delete from stack_card;
-delete from deck_card;
 delete from package_card;
 delete from package;
 delete from card;
 delete from session;
 delete from users;
 
+
+
+insert into users (username, password, name, bio, image, coins, elo) values
+('admin', '3dd487570bbf0bc9abcbb98d7a738afca320bd984156c090b3732be75dfee6246a9ad33d28b9f7bbdecc0a723770fab0561fdc623fb3bd920905342ccd746e82', null, null, 'https://www.memesmonkey.com/images/memesmonkey/8c/8c4fafb301810373c6e37285e9ec7b03.jpeg', 20, 100);
+insert into session (user_id, token, createdAt) values
+((select id from users where username = 'admin'), 'admin-mtcgToken', now());
+
+
+insert into users (username, password, name, bio, image, coins, elo) values
+('kienboec', '3dd487570bbf0bc9abcbb98d7a738afca320bd984156c090b3732be75dfee6246a9ad33d28b9f7bbdecc0a723770fab0561fdc623fb3bd920905342ccd746e82', null, null, null, 20, 100);
+insert into session (user_id, token, createdAt) values
+((select id from users where username = 'kienboec'), 'kienboec-mtcgToken', now());
+
+--insert into package default values;
+
 select * from users;
 select * from session;
-insert into session(user_id, token) values (236, 'token-altenhof');
+select * from package;
+select * from card;
+select * from package_card;
+select * from stack_card;
+

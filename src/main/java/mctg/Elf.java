@@ -1,9 +1,9 @@
 package mctg;
 
-public class FireElf extends MonsterCard {
+public class Elf extends MonsterCard {
 
-    public FireElf(double damage, Element element) {
-        super(damage, element);
+    public Elf(double damage, Element element, String id) {
+        super(damage, element, id);
     }
 
     @Override

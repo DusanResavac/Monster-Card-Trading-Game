@@ -12,14 +12,17 @@ public class RequestContext {
     public final static Map<Integer, String> responseCodes = Map.ofEntries(
             Map.entry(200, "OK"),
             Map.entry(201, "Created"),
+            Map.entry(204, "No Content"),
             Map.entry(400, "Bad Request"),
+            Map.entry(401, "Unauthorized"),
+            Map.entry(402, "Payment Required"),
             Map.entry(404, "Not Found")
 
     );
     public static Map<String, String> responseHeader = Map.ofEntries(
             Map.entry("access-control-allow-origin", "*"),
             Map.entry("Server", "Serverdominator3000"),
-            Map.entry("Content-Type", "text/plain")
+            Map.entry("Content-Type", "text/plain; charset=utf-8")
     );
 
     public static String getDefaultHeader () {
@@ -47,7 +50,8 @@ public class RequestContext {
 
     public static synchronized void writeToSocket (Integer status, String message, BufferedWriter out) {
         try {
-            out.write(getResponseHeader(status, message.length()));
+            // Ohne getBytes werden Unicode Characters nicht richtg für HTTP Response-Längen gewertet z.B.: 🟊🟊🟊
+            out.write(getResponseHeader(status, message.getBytes().length));
             out.write(message);
             out.flush();
         } catch (IOException e) {

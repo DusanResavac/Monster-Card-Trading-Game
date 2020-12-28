@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 
 
 public class CardTest {
+    /*
     @Test
     @DisplayName("Cards equal | mctg.SpellCard, mctg.Kraken")
     public void testEquals_SC_Kraken () {
@@ -45,5 +46,5 @@ public class CardTest {
         //"mctg.Dragon is not equal to mctg.Dragon with different stats"
         assertFalse(dragon.equals(dragon2));
     }
-
+    */
 }
