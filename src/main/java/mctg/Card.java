@@ -27,8 +27,18 @@ public abstract class Card {
         this.id = id;
     }
 
+    public abstract double calculateIncomingDamage(Card card);
+
     public boolean equals (Card card) {
         return card.getClass() == this.getClass() && card.getElement() == getElement() && card.getDamage() == this.getDamage();
+    }
+
+    public String toStringShort () {
+        return String.format("%8s-%-6s-%4.1f", this.getClass().getSimpleName(), element.toString(), damage);
+    }
+
+    public String toStringPlain () {
+        return String.format("%-8s - Damage: %4.1f - Element: %-6s", this.getClass().getSimpleName(), damage, element.toString());
     }
 
     public String toStringTerminal () {

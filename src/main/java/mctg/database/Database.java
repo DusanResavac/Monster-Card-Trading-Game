@@ -6,6 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.sql.*;
 import java.util.*;
 
+import mctg.Battle;
 import mctg.Card;
 import mctg.Element;
 import mctg.http.Jackson.UserRecord;
@@ -21,8 +22,15 @@ public class Database {
     public static void main(String[] args) throws ClassNotFoundException {
         Database db = new Database();
         db.openConnection("jdbc:postgresql://localhost:5432/mctg", "postgres", "password");
-        db.insertUsers(new UserRecord("SmegmaHunterxTrashTaste", "never", null, null, null, 20, 100.0));
         System.out.println(db.getCards("kienboec-mtcgToken", false));
+        //db.simulateBattle("altenhof-mtcgToken", "kienboec-mtcgToken");
+        for (int i = 0; i < 5000; i++) {
+            if (i % 2 == 0) {
+                db.simulateBattle("altenhof-mtcgToken", "kienboec-mtcgToken");
+            } else {
+                db.simulateBattle("kienboec-mtcgToken", "altenhof-mtcgToken");
+            }
+        }
     }
 
 
@@ -129,7 +137,7 @@ public class Database {
         return false;
     }
 
-    public String buyPackage (String token) {
+    public String buyPackage (String token, boolean inTerminal) {
         if (!isTokenValid(token)) {
             return "token";
         }
@@ -139,8 +147,8 @@ public class Database {
             var res = stmt.executeQuery();
             // check amount of coins
             if (res.next() && res.getInt(1) >= 5) {
-                // get a random package
-                var stmt2 = connection.prepareStatement("select id from package order by random() limit 1");
+                // get a r̶a̶n̶d̶o̶m̶ first available package
+                var stmt2 = connection.prepareStatement("select id from package order by id limit 1");
                 var resPackage = stmt2.executeQuery();
                 // if no packages are available
                 if (!resPackage.next()) {
@@ -160,9 +168,9 @@ public class Database {
                 StringBuilder rarityResult = new StringBuilder();
                 rarityResult
                         .append("### Ranking ")
-                        .append("\uD83D\uDFCA")
+                        .append(inTerminal ? "*" : "\uD83D\uDFCA")
                         .append(" - ")
-                        .append("\uD83D\uDFCA\uD83D\uDFCA\uD83D\uDFCA\uD83D\uDFCA\uD83D\uDFCA\uD83D\uDFCA ###")
+                        .append(inTerminal ? "****** ###" : "\uD83D\uDFCA\uD83D\uDFCA\uD83D\uDFCA\uD83D\uDFCA\uD83D\uDFCA\uD83D\uDFCA ###")
                         .append(System.lineSeparator())
                         .append("-----------------------------")
                         .append(System.lineSeparator());
@@ -174,11 +182,11 @@ public class Database {
                     StringBuilder stars = new StringBuilder();
                     for (int boundary: Card.rarityDamage.get(res.getString(3))) {
                         if (damage >= boundary) {
-                            stars.append("\uD83D\uDFCA");
+                            stars.append(inTerminal ? "*" : "\uD83D\uDFCA");
                         }
                     }
-                    stars.append("\uD83D\uDFCA");
-                    String name = String.format("%-15s", res.getString(4) + "-" + res.getString(3));
+                    stars.append(inTerminal ? "*" : "\uD83D\uDFCA");
+                    String name = String.format("%-15s - Damage: %4.1f", res.getString(4) + "-" + res.getString(3), damage);
                     rarityResult.append(name).append(" - ").append(stars).append(System.lineSeparator());
                 }
                 stmt2.close();
@@ -197,7 +205,7 @@ public class Database {
 
     public boolean insertUsers(UserRecord user) {
         try {
-            var statement = connection.prepareStatement("insert into users (username, password, name, bio, image, coins, elo) values (?,?,?,?,?, 20, 100.0)");
+            var statement = connection.prepareStatement("insert into users (username, password, name, bio, image, coins, elo, wins, gamesplayed) values (?,?,?,?,?, 20, 100.0, 0, 0)");
             statement.setString(1, user.Username());
             statement.setString(2, generateHash(user.Password()));
             statement.setString(3, user.Name());
@@ -382,13 +390,14 @@ public class Database {
             }
 
             stmt.close();
-            stmt = connection.prepareStatement("select id from stack_card where user_id = ? and card_id = ?");
-            var updateStmt = connection.prepareStatement("update stack_card set indeck = true where user_id = ? and card_id = ?");
+            stmt = connection.prepareStatement("select id from stack_card where user_id = ? and card_id = ? and locked = false");
+            var updateStmt = connection.prepareStatement("update stack_card set indeck = true where user_id = ? and card_id = ? and locked = false");
 
             for (String cardId: cardIds) {
                 stmt.setInt(1, userId);
                 stmt.setString(2, cardId);
-                if (!stmt.execute()) {
+                res = stmt.executeQuery();
+                if (!res.next()) {
                     throw new SQLException();
                 }
                 updateStmt.setInt(1, userId);
@@ -398,8 +407,9 @@ public class Database {
 
             connection.commit();
             connection.setAutoCommit(true);
+            return true;
         } catch (SQLException sqlException) {
-            sqlException.printStackTrace();
+            //sqlException.printStackTrace();
             try {
                 connection.rollback();
                 connection.setAutoCommit(true);
@@ -412,4 +422,177 @@ public class Database {
 
         return false;
     }
+
+    public UserRecord getUserData(String token, String username) {
+        if (username != null && !tokenMatchesUsername(token, username) || !isTokenValid(token)) {
+            return null;
+        }
+        try {
+            var stmt = connection.prepareStatement("select name, bio, image, elo, gamesplayed, wins, username from users join session s on users.id = s.user_id where token = ?" + (username == null ? "" : " and username = ?"));
+            stmt.setString(1, token);
+            if (username != null) {
+                stmt.setString(2, username);
+            }
+            var res = stmt.executeQuery();
+
+            if (res.next()) {
+                return new UserRecord(res.getString(7), null, res.getString(1), res.getString(2), res.getString(3), null, res.getDouble(4), res.getInt(5), res.getInt(6));
+            }
+        } catch (SQLException sqlException) {
+            sqlException.printStackTrace();
+        }
+
+        return null;
+    }
+
+    public String getStats(String token) {
+        if (!isTokenValid(token)) {
+            return null;
+        }
+        try {
+            var stmt = connection.prepareStatement("select elo, gamesplayed, wins from users join session s on users.id = s.user_id where token = ? limit 1");
+            stmt.setString(1, token);
+            var res = stmt.executeQuery();
+            if (res.next()) {
+                return String.format("Elo: %.1f |  Games: %d | Wins: %d%n", res.getDouble(1), res.getInt(2), res.getInt(3));
+            }
+        } catch (SQLException sqlException) {
+            sqlException.printStackTrace();
+        }
+
+        return null;
+    }
+
+    public String showScoreboard(String token) {
+        if (!isTokenValid(token)) {
+            return null;
+        }
+        try {
+            var stmt = connection.prepareStatement(
+                    "select  row_number() over (order by elo desc, wins desc, users.id desc), elo, gamesplayed, wins, username from users" +
+                            " order by elo desc, wins desc, users.id desc");
+            var res = stmt.executeQuery();
+            var stmt2 = connection.prepareStatement("select username from users join session s on users.id = s.user_id where token = ?");
+            stmt2.setString(1, token);
+            var res2 = stmt2.executeQuery();
+            String username = null;
+            if (res2.next()) {
+                username = res2.getString(1);
+            }
+            StringBuilder score = new StringBuilder();
+            score.append("=================== SCORE ===================").append(System.lineSeparator());
+            score.append("  #   |       USERNAME       |   ELO  |  %WR  ").append(System.lineSeparator());
+            while (res.next()) {
+                double winrate = res.getInt(3) > 0 ? (double) res.getInt(4)/res.getInt(3) : 0.0;
+                score.append(String.format(" %3d. | %-20s | %6.1f | %5.2f",
+                        res.getInt(1),                  // Rownumber
+                        res.getString(5),               // Username
+                        res.getDouble(2),               // Elo
+                        winrate*100));                                 // Winrate (3 -> number of games played, 4 -> number of wins)
+                if (username != null && res.getString(5).equals(username)) {
+                    score.append("  <-----  YOU");
+                }
+                score.append(System.lineSeparator());
+            }
+            return score.toString();
+        } catch (SQLException sqlException) {
+            sqlException.printStackTrace();
+        }
+
+        return null;
+    }
+
+    public String simulateBattle (String token1, String token2) {
+        if (!isTokenValid(token1) || !isTokenValid(token2)) {
+            return null;
+        }
+
+        List<Card> deck1 = getCards(token1, true);
+        List<Card> deck2 = getCards(token2, true);
+
+        if (deck1.size() == 4 && deck2.size() == 4) {
+            UserRecord user1 = null, user2 = null;
+            try {
+                /*String username1 = null, username2 = null;
+                PreparedStatement stmtUsername = connection.prepareStatement("select username from users " +
+                        "join session s on users.id = s.user_id where token = ?");
+                stmtUsername.setString(1, token1);
+                ResultSet resUsername = stmtUsername.executeQuery();
+                if (resUsername.next()) {
+                    username1 = resUsername.getString(1);
+                }
+                stmtUsername.setString(1, token2);
+                resUsername = stmtUsername.executeQuery();
+                if (resUsername.next()) {
+                    username2 = resUsername.getString(1);
+                }*/
+                user1 = getUserData(token1, null/*, username1*/);
+                user2 = getUserData(token2, null/*, username2*/);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            if (user1 == null || user2 == null) {return null;}
+            Battle battle = new Battle(deck1, deck2, user1.Username(), user2.Username());
+            String result = battle.startBattle();
+            //System.out.println(result);
+
+            if (deck1.size() == 0 || deck2.size() == 0) {
+
+                // exponential equation for elo calculation:
+                // https://www.geogebra.org/calculator/vuv2fusj
+                // if someone in a high elo loses against someone in a low elo, he loses a lot of elo and the winner gets a lot of elo
+                double eloWin = 0;
+                boolean playerOneLost = deck1.size() == 0;
+                /*
+                Example:
+                    Elo 500 wins against Elo 100 -> Elo 500 should get few elo points because he is stronger than the Elo 100 guy
+                    Elo 500 loses against Elo 100 -> Elo 500 should lose lots of elo points because he should have been stronger than the Elo 100 guy
+                 */
+                double eloDiff = playerOneLost ? user1.Elo() - user2.Elo() : user2.Elo() - user1.Elo();
+                if (eloDiff >= 0) {
+                    eloWin = 20 - 17 * Math.pow(Math.E, -0.012*eloDiff);
+                    //eloWin = 3;
+                } else {
+                    eloWin = 0.5 + 2.5 * Math.pow(Math.E, 0.025*eloDiff);
+                    //eloWin = 3;
+                }
+
+                PreparedStatement stmt = null;
+                try {
+                    stmt = connection.prepareStatement("update users set elo = ?, wins = ?, gamesplayed = ? where username = ?");
+                    stmt.setDouble(1, user1.Elo() - (playerOneLost ? eloWin : -eloWin));
+                    stmt.setDouble(2, playerOneLost ? user1.Wins() : user1.Wins() + 1);
+                    stmt.setDouble(3, user1.GamesPlayed() + 1);
+                    stmt.setString(4, user1.Username());
+                    stmt.executeUpdate();
+                    stmt.setDouble(1, user2.Elo() + (playerOneLost ? eloWin : -eloWin));
+                    stmt.setDouble(2, playerOneLost ? user2.Wins() + 1 : user2.Wins());
+                    stmt.setDouble(3, user2.GamesPlayed() + 1);
+                    stmt.setString(4, user2.Username());
+                    stmt.executeUpdate();
+                } catch (SQLException sqlException) {
+                    sqlException.printStackTrace();
+                    return null;
+                }
+
+            }
+            else {
+                try {
+                    var stmt = connection.prepareStatement("update users set gamesplayed = ? where username = ?");
+                    stmt.setInt(1, user1.GamesPlayed() + 1);
+                    stmt.setString(2, user1.Username());
+                    stmt.executeUpdate();
+                    stmt.setInt(1, user2.GamesPlayed() + 1);
+                    stmt.setString(2, user2.Username());
+                    stmt.executeUpdate();
+                } catch (SQLException sqlException) {
+                    sqlException.printStackTrace();
+                }
+            }
+            return result;
+        }
+
+        return null;
+    }
+
 }

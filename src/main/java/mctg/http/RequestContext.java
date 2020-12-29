@@ -16,7 +16,8 @@ public class RequestContext {
             Map.entry(400, "Bad Request"),
             Map.entry(401, "Unauthorized"),
             Map.entry(402, "Payment Required"),
-            Map.entry(404, "Not Found")
+            Map.entry(404, "Not Found"),
+            Map.entry(500, "Internal Server Error")
 
     );
     public static Map<String, String> responseHeader = Map.ofEntries(

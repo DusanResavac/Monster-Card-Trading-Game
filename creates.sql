@@ -1,3 +1,5 @@
+
+
 drop table if exists trading_area;
 drop table if exists stack_card;
 drop table if exists package_card;
@@ -16,12 +18,13 @@ create table users (
     bio varchar(500),
     image varchar(255),
     coins integer,
-    elo double precision
+    elo double precision,
+    wins int,
+    gamesPlayed int
 );
 
 create table session (
-    id serial primary key,
-    user_id integer,
+    id serial primary key,user_id integer,
     token varchar(255),
     createdAt timestamp,
     foreign key (user_id) references users (id) on delete cascade
@@ -46,13 +49,23 @@ create table package_card (
     foreign key (package_id) references package (id) on delete cascade
 );
 
-
 create table stack_card (
     id serial primary key,
     card_id varchar(255),
     user_id integer,
     locked bool,
     inDeck bool,
+    foreign key (card_id) references card (id) on delete cascade,
+    foreign key (user_id) references users (id) on delete cascade
+);
+
+
+create table trading_area (
+    id varchar(255) primary key,
+    card_id varchar(255),
+    user_id integer,
+    type varchar(255),
+    element varchar(255),
     foreign key (card_id) references card (id) on delete cascade,
     foreign key (user_id) references users (id) on delete cascade
 );
@@ -66,20 +79,9 @@ create table deck_card (
 
 );*/
 
-create table trading_area (
-    id varchar(255) primary key,
-    card_id varchar(255),
-    user_id integer,
-    type varchar(255),
-    element varchar(255),
-    foreign key (card_id) references card (id) on delete cascade,
-    foreign key (user_id) references users (id) on delete cascade
-);
-
-
-delete from trading_area;
 delete from stack_card;
 delete from package_card;
+delete from trading_area;
 delete from package;
 delete from card;
 delete from session;
@@ -100,10 +102,20 @@ insert into session (user_id, token, createdAt) values
 
 --insert into package default values;
 
-select * from users;
+select username, elo, wins, gamesPlayed from users;
 select * from session;
 select * from package;
 select * from card;
 select * from package_card;
-select * from stack_card;
+select * from stack_card where inDeck = true;
 
+
+select * from card order by id;
+
+select row_number() over (order by elo, wins, users.id desc), elo, gamesplayed, wins, username, token, users.id from users
+    left join session s on users.id = s.user_id;
+
+update users set elo = 100, wins = 0, gamesPlayed = 0;
+
+select  row_number() over (order by elo desc, wins desc, users.id desc), elo, gamesplayed, wins, username from users
+    order by elo desc, wins desc, users.id desc;
