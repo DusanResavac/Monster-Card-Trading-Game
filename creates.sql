@@ -64,8 +64,8 @@ create table trading_area (
     id varchar(255) primary key,
     card_id varchar(255),
     user_id integer,
-    type varchar(255),
-    element varchar(255),
+    wantedType varchar(255),
+    minimumDamage double precision,
     foreign key (card_id) references card (id) on delete cascade,
     foreign key (user_id) references users (id) on delete cascade
 );
@@ -107,7 +107,8 @@ select * from session;
 select * from package;
 select * from card;
 select * from package_card;
-select * from stack_card where inDeck = true;
+select * from stack_card;
+select * from trading_area;
 
 
 select * from card order by id;
@@ -119,3 +120,8 @@ update users set elo = 100, wins = 0, gamesPlayed = 0;
 
 select  row_number() over (order by elo desc, wins desc, users.id desc), elo, gamesplayed, wins, username from users
     order by elo desc, wins desc, users.id desc;
+
+select minimumDamage, wantedType, damage, type, element, username from trading_area
+    join stack_card sc on trading_area.card_id = sc.card_id
+    join card c on trading_area.card_id = c.id and sc.card_id = c.id
+    join users u on trading_area.user_id = u.id and sc.user_id = u.id;

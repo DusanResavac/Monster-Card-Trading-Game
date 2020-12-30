@@ -82,8 +82,6 @@ public class Battle {
             }
             if (roundResult < 0) {
                 transferCardToDeck(deck2, deck1, card2.getId());
-                /*summary.append(username1).append(" wins | RemainingCards: Deck-").append(username1).append(": ").append(deck1.size())
-                        .append(" Deck-").append(username2).append(": ").append(deck2.size());*/
                 summary.append(username1).append(" wins | Remaining cards: ").append(username1).append(": ").append(deck1.size()).append(" - ")
                         .append(username2).append(": ").append(deck2.size());
             }

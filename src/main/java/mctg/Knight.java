@@ -1,6 +1,6 @@
 package mctg;
 
-public class Knight extends MonsterCard {
+public class Knight extends Monster {
 
     public Knight(double damage, Element element, String id) {
         super(damage, element, id);

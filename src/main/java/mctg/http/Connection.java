@@ -9,8 +9,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import mctg.BattleEntry;
 import mctg.Card;
+import mctg.TradeOffer;
 import mctg.User;
 import mctg.http.Jackson.CardRecord;
+import mctg.http.Jackson.TradeOfferRecord;
 import mctg.http.Jackson.UserRecord;
 
 import java.io.*;
@@ -174,6 +176,24 @@ public class Connection extends Thread implements ConnectionInterface {
             return false;
 
         }
+        else if (parts[1].equalsIgnoreCase("tradings")) {
+            rc.setValue("Authorization", rc.getValue("Authorization").substring("Basic ".length()));
+            List<TradeOffer> tradeOffers = HTTPServer.db.getTradingOffers(rc.getValue("Authorization"));
+            if (tradeOffers == null) {
+                RequestContext.writeToSocket(404, HTTPServer.UNAUTHORIZED, out);
+                return false;
+            } else {
+                StringBuilder response = new StringBuilder();
+                response.append("        Card         |  wanted  |  dmg  |                 trade-ID             ").append(System.lineSeparator());
+                for (TradeOffer tradeOffer: tradeOffers) {
+                    Card card = tradeOffer.getCard();
+                    response.append(String.format("%s | %-8s | %5.1f | %s", card.toStringShort(), tradeOffer.getType(), tradeOffer.getMinimumDamage(), tradeOffer.getId()))
+                            .append(System.lineSeparator());
+                }
+                RequestContext.writeToSocket(200, response.toString(), out);
+                return true;
+            }
+        }
 
         RequestContext.writeToSocket(400, "Could not parse request. Please check whether the url is correct.", out);
         return false;
@@ -182,7 +202,9 @@ public class Connection extends Thread implements ConnectionInterface {
     public synchronized boolean handlePost(RequestContext rc, BufferedReader in, BufferedWriter out) {
         String[] parts = rc.getValue("url").split("/");
 
-        if (parts.length < 2 || (rc.getValue("Authorization") == null && !parts[1].equalsIgnoreCase("users") && !parts[1].equalsIgnoreCase("sessions"))) {
+        if (parts.length < 2 || (rc.getValue("Authorization") == null &&
+                !parts[1].equalsIgnoreCase("users") &&
+                !parts[1].equalsIgnoreCase("sessions"))) {
             RequestContext.writeToSocket(400, "Either the requested URL is incorrect or you didn't specify an authorization token, when one was expected", out);
             return false;
         }
@@ -200,6 +222,7 @@ public class Connection extends Thread implements ConnectionInterface {
                 return false;
             }
         }
+
         String messageStr = message.toString();
         ObjectMapper mapper = new ObjectMapper();
         mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
@@ -358,6 +381,37 @@ public class Connection extends Thread implements ConnectionInterface {
             }
 
         }
+        else if (parts[1].equalsIgnoreCase("tradings")) {
+            rc.setValue("Authorization", rc.getValue("Authorization").substring("Basic ".length()));
+
+            if (parts.length == 3) {
+
+                messageStr = messageStr.replaceAll("\"", "");
+                if (HTTPServer.db.tryToTrade(rc.getValue("Authorization"), parts[2], messageStr)) {
+                    RequestContext.writeToSocket(200, "Successfully traded", out);
+                    return true;
+                } else {
+                    RequestContext.writeToSocket(400, "An error occurred while processing the request. " +
+                            "Please check the trade requirements and verify that your token is valid.", out);
+                }
+            } else {
+                try {
+                    TradeOfferRecord tradeOfferRecord = mapper.readValue(messageStr, new TypeReference<TradeOfferRecord>() {});
+                    if (HTTPServer.db.insertTradeOffer(rc.getValue("Authorization"), tradeOfferRecord)) {
+                        RequestContext.writeToSocket(200, "Successfully inserted trade offer", out);
+                        return true;
+                    } else {
+                        RequestContext.writeToSocket(400, "An error occurred while processing the request. " +
+                                "Please check whether you possess the specified card and verify that your token is valid.", out);
+                    }
+                } catch (JsonProcessingException e) {
+                    //e.printStackTrace();
+                    RequestContext.writeToSocket(400, "Wrong body format", out);
+                    return false;
+                }
+
+            }
+        }
 
         return false;
     }
@@ -428,6 +482,22 @@ public class Connection extends Thread implements ConnectionInterface {
 
     public synchronized boolean handleDelete(RequestContext rc, BufferedWriter out) {
         String[] parts = rc.getValue("url").split("/");
+        if (parts.length < 3 || rc.getValue("Authorization") == null) {
+            RequestContext.writeToSocket(400, "Malformed url", out);
+            return false;
+        }
+
+        if (parts[1].equalsIgnoreCase("tradings")) {
+            rc.setValue("Authorization", rc.getValue("Authorization").substring("Basic ".length()));
+
+            if (HTTPServer.db.deleteTradingOffer(rc.getValue("Authorization"), parts[2])) {
+                RequestContext.writeToSocket(200, "Successfully deleted trading offer", out);
+                return true;
+            } else {
+                RequestContext.writeToSocket(400, "An error occurred while trying to delete offer. Please verify that token is valid", out);
+            }
+        }
+
         return false;
     }
 }

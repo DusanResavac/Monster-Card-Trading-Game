@@ -6,9 +6,8 @@ import java.security.NoSuchAlgorithmException;
 import java.sql.*;
 import java.util.*;
 
-import mctg.Battle;
-import mctg.Card;
-import mctg.Element;
+import mctg.*;
+import mctg.http.Jackson.TradeOfferRecord;
 import mctg.http.Jackson.UserRecord;
 import mctg.http.Jackson.CardRecord;
 
@@ -22,15 +21,16 @@ public class Database {
     public static void main(String[] args) throws ClassNotFoundException {
         Database db = new Database();
         db.openConnection("jdbc:postgresql://localhost:5432/mctg", "postgres", "password");
-        System.out.println(db.getCards("kienboec-mtcgToken", false));
+        //System.out.println(db.getCards("kienboec-mtcgToken", false));
         //db.simulateBattle("altenhof-mtcgToken", "kienboec-mtcgToken");
-        for (int i = 0; i < 5000; i++) {
+        /*for (int i = 0; i < 5000; i++) {
             if (i % 2 == 0) {
                 db.simulateBattle("altenhof-mtcgToken", "kienboec-mtcgToken");
             } else {
                 db.simulateBattle("kienboec-mtcgToken", "altenhof-mtcgToken");
             }
-        }
+        }*/
+        System.out.println(Spell.class.isAssignableFrom(Spell.class));
     }
 
 
@@ -372,6 +372,7 @@ public class Database {
         try {
             // If an error is encountered anywhere in this transaction, we would like to restore the previous state of the deck without having to manually revert all the changes
             connection.setAutoCommit(false);
+            connection.commit();
 
             // first we need to remove all cards from the deck
             var stmt = connection.prepareStatement("select user_id from session where token = ?");
@@ -397,6 +398,7 @@ public class Database {
                 stmt.setInt(1, userId);
                 stmt.setString(2, cardId);
                 res = stmt.executeQuery();
+                // if res.next() returns false, then that means, that there is no such card in the possession of this user (at least not in a unlocked state)
                 if (!res.next()) {
                     throw new SQLException();
                 }
@@ -595,4 +597,216 @@ public class Database {
         return null;
     }
 
+    public List<TradeOffer> getTradingOffers (String token) {
+        if (!isTokenValid(token)) {
+            return null;
+        }
+        try {
+            var stmt = connection.prepareStatement("select minimumDamage, wantedType, type, damage, element, c.id, ta.id from trading_area ta" +
+                    "    join stack_card sc on ta.card_id = sc.card_id" +
+                    "    join card c on ta.card_id = c.id and sc.card_id = c.id" +
+                    "    join users u on ta.user_id = u.id and sc.user_id = u.id");
+            var res = stmt.executeQuery();
+            ArrayList<TradeOffer> tradeOffers = new ArrayList<>();
+            while (res.next()) {
+                Card card = getCorrectCard(res.getString(3), res.getDouble(4), Element.valueOf(res.getString(5)), res.getString(6));
+                if (card == null) {
+                    return null;
+                }
+                tradeOffers.add(new TradeOffer(card, res.getString(7), res.getDouble(1), res.getString(2)));
+            }
+            return tradeOffers;
+        } catch (SQLException sqlException) {
+            sqlException.printStackTrace();
+        }
+
+        return null;
+    }
+
+    public boolean insertTradeOffer (String token, TradeOfferRecord tradeOfferRecord) {
+        if (!isTokenValid(token)) {
+            return false;
+        }
+
+        try {
+            // get userID and check if the user has the card
+            var stmt = connection.prepareStatement("select users.id from users " +
+                    "join session s on users.id = s.user_id " +
+                    "join stack_card sc on users.id = sc.user_id" +
+                    " where token = ? and card_id = ? and locked = false and indeck = false");
+            stmt.setString(1, token);
+            stmt.setString(2, tradeOfferRecord.CardToTrade());
+            var res = stmt.executeQuery();
+            int userId = 0;
+            if (res.next()) {
+                userId = res.getInt(1);
+            }
+            stmt.close();
+            if (userId == 0) {
+                return false;
+            }
+            stmt = connection.prepareStatement("insert into trading_area (id, card_id, user_id, wantedtype, minimumdamage) values (?, ?, ?, ?, ?)");
+            stmt.setString(1, tradeOfferRecord.Id());
+            stmt.setString(2, tradeOfferRecord.CardToTrade());
+            stmt.setInt(3, userId);
+            stmt.setString(4, tradeOfferRecord.Type());
+            stmt.setDouble(5, tradeOfferRecord.MinimumDamage());
+            stmt.executeUpdate();
+            stmt.close();
+
+            // change status of card to locked (can not be added to deck)
+            stmt = connection.prepareStatement("update stack_card set locked = true where user_id = ? and card_id = ?");
+            stmt.setInt(1, userId);
+            stmt.setString(2, tradeOfferRecord.CardToTrade());
+            stmt.executeUpdate();
+            stmt.close();
+            return true;
+
+        } catch (SQLException sqlException) {
+            sqlException.printStackTrace();
+        }
+
+
+        return false;
+    }
+
+    public boolean tryToTrade (String token, String tradeId, String buyerCardId) {
+        if (!isTokenValid(token)) {
+            return false;
+        }
+
+        try {
+            connection.setAutoCommit(false);
+            connection.commit();
+
+            var stmt = connection.prepareStatement("select users.id, c.type, c.damage  from users " +
+                    "join session s on users.id = s.user_id " +
+                    "join stack_card sc on users.id = sc.user_id " +
+                    "join card c on c.id = sc.card_id " +
+                    "where token = ? and card_id = ? and locked = false and indeck = false");
+            stmt.setString(1, token);
+            stmt.setString(2, buyerCardId);
+            var res = stmt.executeQuery();
+            if (!res.next()) {
+                throw new SQLException();
+            }
+            stmt.close();
+
+            int buyerUserId = res.getInt(1);
+            String cardType = res.getString(2);
+            double damage = res.getDouble(3);
+
+            stmt = connection.prepareStatement("select wantedtype, minimumdamage, card_id, user_id from trading_area where trading_area.id = ?");
+            stmt.setString(1, tradeId);
+            res = stmt.executeQuery();
+            if (!res.next()) {
+                throw new SQLException();
+            }
+            stmt.close();
+
+            String wantedType = res.getString(1);
+            double minimumDamage = res.getDouble(2);
+            String sellerCardId = res.getString(3);
+            int sellerUserId = res.getInt(4);
+
+            if (buyerUserId == sellerUserId) {
+                throw new SQLException();
+            }
+
+            // test if criteria are met
+            if (
+                    minimumDamage <= damage ||
+                    wantedType.equalsIgnoreCase("monster") && Monster.class.isAssignableFrom(Class.forName(cardType)) ||
+                    wantedType.equalsIgnoreCase("spell") && Spell.class.isAssignableFrom(Class.forName(cardType))) {
+
+                // first add both cards to the players
+                stmt = connection.prepareStatement("insert into stack_card (card_id, user_id, locked, indeck) VALUES (?, ?, false, false)");
+                stmt.setString(1, buyerCardId);
+                stmt.setInt(2, sellerUserId);
+                stmt.executeUpdate();
+                stmt.setString(1, sellerCardId);
+                stmt.setInt(2, buyerUserId);
+                stmt.executeUpdate();
+                stmt.close();
+
+                // then delete the card that was traded from the corresponding inventory
+                stmt = connection.prepareStatement("delete from stack_card where user_id = ? and card_id = ?") ;
+                stmt.setInt(1, sellerUserId);
+                stmt.setString(2, sellerCardId);
+                stmt.executeUpdate();
+                stmt.setInt(1, buyerUserId);
+                stmt.setString(2, buyerCardId);
+                stmt.executeUpdate();
+                stmt.close();
+
+                stmt = connection.prepareStatement("delete from trading_area where id = ?");
+                stmt.setString(1, tradeId);
+                stmt.executeUpdate();
+                stmt.close();
+
+                connection.commit();
+                return true;
+            }
+
+            connection.rollback();
+        } catch (SQLException | ClassNotFoundException e) {
+            try {
+                connection.rollback();
+                connection.setAutoCommit(true);
+            } catch (SQLException sqlException) {
+                sqlException.printStackTrace();
+            }
+            //e.printStackTrace();
+        }
+
+        return false;
+    }
+
+    public boolean deleteTradingOffer (String token, String tradeId) {
+        if (!isTokenValid(token)) {
+            return false;
+        }
+
+        try {
+            connection.setAutoCommit(false);
+            connection.commit();
+
+            // check if user has such trading offer
+            var stmt = connection.prepareStatement("select s.user_id, card_id from trading_area " +
+                    "join session s on trading_area.user_id = s.user_id where token = ? and trading_area.id = ?");
+            stmt.setString(1, token);
+            stmt.setString(2, tradeId);
+            var res = stmt.executeQuery();
+            if (!res.next()) {
+                throw new SQLException();
+            }
+            int userId = res.getInt(1);
+            String cardId = res.getString(2);
+            stmt.close();
+
+            stmt = connection.prepareStatement("update stack_card set locked = false where user_id = ? and card_id = ?");
+            stmt.setInt(1, userId);
+            stmt.setString(2, cardId);
+            stmt.executeUpdate();
+            stmt.close();
+
+            stmt = connection.prepareStatement("delete from trading_area where id = ?");
+            stmt.setString(1, tradeId);
+            stmt.executeUpdate();
+            stmt.close();
+
+            connection.commit();
+            return true;
+        } catch (SQLException sqlException) {
+            try {
+                connection.rollback();
+                connection.setAutoCommit(true);
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+            }
+            //sqlException.printStackTrace();
+        }
+
+        return false;
+    }
 }

@@ -49,7 +49,7 @@ public abstract class Card {
             }
         }
         stars.append("*");
-        return String.format("%8s - Damage: %.1f - Element: %6s - InDeck: %5b - Locked: %5b - Stars: %s", this.getClass().getSimpleName(), damage, element.toString(), inDeck, lockedFromUsing, stars.toString());
+        return String.format(" %-8s - Damage: %5.1f - Element: %-6s - InDeck: %5b - Locked: %5b - Stars: %s", this.getClass().getSimpleName(), damage, element.toString(), inDeck, lockedFromUsing, stars.toString());
     }
 
     public String toString () {
@@ -60,6 +60,6 @@ public abstract class Card {
             }
         }
         stars.append("\uD83D\uDFCA");
-        return String.format("%8s - Damage: %.1f - Element: %6s - InDeck: %5b - Locked: %5b - Stars: %s", this.getClass().getSimpleName(), damage, element.toString(), inDeck, lockedFromUsing, stars.toString());
+        return String.format(" %-8s - Damage: %5.1f - Element: %-6s - InDeck: %5b - Locked: %5b - Stars: %s", this.getClass().getSimpleName(), damage, element.toString(), inDeck, lockedFromUsing, stars.toString());
     }
 }

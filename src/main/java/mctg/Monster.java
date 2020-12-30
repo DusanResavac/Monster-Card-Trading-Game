@@ -1,6 +1,6 @@
 package mctg;
 
-public abstract class MonsterCard extends Card implements DamageCalculation {
+public abstract class Monster extends Card implements DamageCalculation {
 
     public static void main(String[] args) {
         /*Kraken kraken = new Kraken(30, Element.WATER);
@@ -17,7 +17,7 @@ public abstract class MonsterCard extends Card implements DamageCalculation {
 
     private String type;
 
-    public MonsterCard(double damage, Element element, String id) {
+    public Monster(double damage, Element element, String id) {
         super(damage, element, id);
     }
 
