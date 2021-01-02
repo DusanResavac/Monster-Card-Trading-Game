@@ -102,12 +102,13 @@ insert into session (user_id, token, createdAt) values
 
 --insert into package default values;
 
-select username, elo, wins, gamesPlayed from users;
+select username, coins, elo, wins, gamesPlayed from users;
+select * from users;
 select * from session;
 select * from package;
 select * from card;
 select * from package_card;
-select * from stack_card;
+select card_id, damage, element, type from stack_card join card c on stack_card.card_id = c.id;
 select * from trading_area;
 
 

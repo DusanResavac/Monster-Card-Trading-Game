@@ -52,8 +52,8 @@ public class RequestContext {
     public static synchronized void writeToSocket (Integer status, String message, BufferedWriter out) {
         try {
             // Ohne getBytes werden Unicode Characters nicht richtg für HTTP Response-Längen gewertet z.B.: 🟊🟊🟊
-            out.write(getResponseHeader(status, message.getBytes().length));
-            out.write(message);
+            out.write(getResponseHeader(status, message.getBytes().length + System.lineSeparator().getBytes().length));
+            out.write(message + System.lineSeparator());
             out.flush();
         } catch (IOException e) {
             e.printStackTrace();

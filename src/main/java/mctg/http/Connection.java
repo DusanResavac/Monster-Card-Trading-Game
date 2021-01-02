@@ -1,25 +1,12 @@
 package mctg.http;
 
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.PropertyAccessor;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import mctg.BattleEntry;
-import mctg.Card;
-import mctg.TradeOffer;
-import mctg.User;
-import mctg.http.Jackson.CardRecord;
-import mctg.http.Jackson.TradeOfferRecord;
-import mctg.http.Jackson.UserRecord;
+import mctg.http.RequestHandler.DeleteHandler;
+import mctg.http.RequestHandler.GetHandler;
+import mctg.http.RequestHandler.PostHandler;
+import mctg.http.RequestHandler.PutHandler;
 
 import java.io.*;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
 
 public class Connection extends Thread implements ConnectionInterface {
 
@@ -112,392 +99,49 @@ public class Connection extends Thread implements ConnectionInterface {
     }
 
     public synchronized boolean handleGet(RequestContext rc, BufferedWriter out) {
-        //System.out.println(Arrays.toString(parts));
-        String[] parts = rc.getValue("url").split("/");
-
-        if (parts.length < 2 || rc.getValue("Authorization") == null) {
-            RequestContext.writeToSocket(400, "Either the requested URL is malformed or you didn't specify an authorization token, when one was expected", out);
-            return false;
+        GetHandler getHandler = new GetHandler(rc, out);
+        getHandler.start();
+        try {
+            getHandler.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
-        if (parts[1].equalsIgnoreCase("cards") || parts[1].startsWith("deck")) {
-            rc.setValue("Authorization", rc.getValue("Authorization").substring("Basic ".length()));
-            // if the deck is supposed to be listed, the second argument is going to be true and therefore only show the cards in the deck
-            List<Card> cards = HTTPServer.db.getCards(rc.getValue("Authorization"), parts[1].startsWith("deck"));
-            StringBuilder cardToString = new StringBuilder();
-            boolean isTerminal = rc.getValue("User-Agent").startsWith("curl");
-
-            if (cards == null) {
-                RequestContext.writeToSocket(401, HTTPServer.UNAUTHORIZED, out);
-                return false;
-            }
-
-            for (Card card: cards) {
-                if (parts[1].equalsIgnoreCase("deck?format=plain")) {
-                    cardToString.append(card.toStringPlain()).append(System.lineSeparator());
-                } else {
-                    cardToString.append(isTerminal ? card.toStringTerminal() : card).append(System.lineSeparator());
-                }
-            }
-            RequestContext.writeToSocket(200, cardToString.toString(), out);
-            return true;
-        }
-        else if (parts[1].equalsIgnoreCase("users")) {
-            if (parts.length < 3) {
-                RequestContext.writeToSocket(400, "You are missing the username in the url. Correct example: server/users/altenhof", out);
-                return false;
-            }
-            rc.setValue("Authorization", rc.getValue("Authorization").substring("Basic ".length()));
-            UserRecord user = HTTPServer.db.getUserData(rc.getValue("Authorization"), parts[2]);
-            if (user != null) {
-                RequestContext.writeToSocket(200, String.format("Name: %s | Bio: %s | Image: %s", user.Name(), user.Bio(), user.Image()), out);
-                return true;
-            }
-            RequestContext.writeToSocket(400, "An error occurred. Please check your token and the specified username", out);
-            return false;
-        }
-        else if (parts[1].equalsIgnoreCase("stats")) {
-            rc.setValue("Authorization", rc.getValue("Authorization").substring("Basic ".length()));
-            String response = HTTPServer.db.getStats(rc.getValue("Authorization"));
-            if (response != null) {
-                RequestContext.writeToSocket(200, response, out);
-                return true;
-            }
-            RequestContext.writeToSocket(401, HTTPServer.UNAUTHORIZED, out);
-            return false;
-        }
-        else if (parts[1].equalsIgnoreCase("score")) {
-            rc.setValue("Authorization", rc.getValue("Authorization").substring("Basic ".length()));
-            String response = HTTPServer.db.showScoreboard(rc.getValue("Authorization"));
-            if (response != null) {
-                RequestContext.writeToSocket(200, response, out);
-                return true;
-            }
-            RequestContext.writeToSocket(401, HTTPServer.UNAUTHORIZED, out);
-            return false;
-
-        }
-        else if (parts[1].equalsIgnoreCase("tradings")) {
-            rc.setValue("Authorization", rc.getValue("Authorization").substring("Basic ".length()));
-            List<TradeOffer> tradeOffers = HTTPServer.db.getTradingOffers(rc.getValue("Authorization"));
-            if (tradeOffers == null) {
-                RequestContext.writeToSocket(404, HTTPServer.UNAUTHORIZED, out);
-                return false;
-            } else {
-                StringBuilder response = new StringBuilder();
-                response.append("        Card         |  wanted  |  dmg  |                 trade-ID             ").append(System.lineSeparator());
-                for (TradeOffer tradeOffer: tradeOffers) {
-                    Card card = tradeOffer.getCard();
-                    response.append(String.format("%s | %-8s | %5.1f | %s", card.toStringShort(), tradeOffer.getType(), tradeOffer.getMinimumDamage(), tradeOffer.getId()))
-                            .append(System.lineSeparator());
-                }
-                RequestContext.writeToSocket(200, response.toString(), out);
-                return true;
-            }
-        }
-
-        RequestContext.writeToSocket(400, "Could not parse request. Please check whether the url is correct.", out);
-        return false;
+        return getHandler.getResult();
+        //return GetHandler.handleGet(rc, out);
     }
 
     public synchronized boolean handlePost(RequestContext rc, BufferedReader in, BufferedWriter out) {
-        String[] parts = rc.getValue("url").split("/");
-
-        if (parts.length < 2 || (rc.getValue("Authorization") == null &&
-                !parts[1].equalsIgnoreCase("users") &&
-                !parts[1].equalsIgnoreCase("sessions"))) {
-            RequestContext.writeToSocket(400, "Either the requested URL is incorrect or you didn't specify an authorization token, when one was expected", out);
-            return false;
+        PostHandler postHandler = new PostHandler(rc, in, out);
+        postHandler.start();
+        try {
+            postHandler.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
-
-        int counter = 0;
-        StringBuilder message = new StringBuilder();
-        if (!parts[1].equalsIgnoreCase("battles")) {
-            int contentLength = Integer.parseInt(rc.getValue("Content-Length"));
-            try {
-                while (counter < contentLength) {
-                    message.append((char) in.read());
-                    counter++;
-                }
-            } catch (IOException ioException) {
-                return false;
-            }
-        }
-
-        String messageStr = message.toString();
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
-        mapper.enable(SerializationFeature.INDENT_OUTPUT);
-
-        if (parts[1].equalsIgnoreCase("packages")) {
-            rc.setValue("Authorization", rc.getValue("Authorization").substring("Basic ".length()));
-            try {
-                ArrayList<CardRecord> cardRecords = mapper.readValue(messageStr, new TypeReference<ArrayList<CardRecord>>(){} );
-                return HTTPServer.db.insertPackage(cardRecords, rc.getValue("Authorization"));
-            } catch (JsonProcessingException e) {
-                e.printStackTrace();
-            }
-        }
-        else if (parts[1].equalsIgnoreCase("transactions") && parts[2].equalsIgnoreCase("packages")) {
-            rc.setValue("Authorization", rc.getValue("Authorization").substring("Basic ".length()));
-            String response = HTTPServer.db.buyPackage(rc.getValue("Authorization"), rc.getValue("User-Agent").startsWith("curl"));
-            if (response == null) {
-                return false;
-            }
-            switch (response) {
-                case ("coins"):
-                    RequestContext.writeToSocket(402, "You don't have any coins left. Try visiting our shop to acquire more coins and get those super rare cards! ;)", out);
-                    break;
-                case ("token"):
-                    RequestContext.writeToSocket(401, HTTPServer.UNAUTHORIZED, out);
-                    break;
-                case ("package"):
-                    RequestContext.writeToSocket(404, "There are no more packages left. Please wait for the next drop of loot.", out);
-                    break;
-                default:
-                    RequestContext.writeToSocket(200, response, out);
-                    return true;
-            }
-        }
-        else if (parts[1].equalsIgnoreCase("users")) {
-            try {
-                UserRecord userRecord = mapper.readValue(messageStr, new TypeReference<UserRecord>() {});
-                if (HTTPServer.db.insertUsers(userRecord)) {
-                    RequestContext.writeToSocket(201, "User " + userRecord.Username() + " added", out);
-                    return true;
-                } else {
-                    RequestContext.writeToSocket(401, "An error occurred.", out);
-                }
-            } catch (JsonProcessingException e) {
-                e.printStackTrace();
-            }
-        }
-        else if (parts[1].equalsIgnoreCase("sessions")) {
-            try {
-                UserRecord userRecord = mapper.readValue(messageStr, new TypeReference<UserRecord>() {});
-                if (userRecord.Username() == null || userRecord.Password() == null) {
-                    RequestContext.writeToSocket(400, "Username or Password is missing", out);
-                    return false;
-                }
-                String response = HTTPServer.db.loginUser(userRecord.Username(), userRecord.Password());
-                if (response == null) {
-                    RequestContext.writeToSocket(401, "User not found or combination of username and password is wrong.", out);
-                } else {
-                    RequestContext.writeToSocket(200, response, out);
-                    return true;
-                }
-            } catch (JsonProcessingException e) {
-                e.printStackTrace();
-            }
-        }
-        else if (parts[1].equalsIgnoreCase("battles")) {
-            rc.setValue("Authorization", rc.getValue("Authorization").substring("Basic ".length()));
-            UserRecord user = HTTPServer.db.getUserData(rc.getValue("Authorization"), null);
-            if (user == null) {
-                RequestContext.writeToSocket(400, HTTPServer.UNAUTHORIZED, out);
-                return false;
-            }
-
-            BattleEntry enemy = null;
-            synchronized (HTTPServer.usersInQueue) {
-                double smallestEloDiff = Double.MAX_VALUE;
-                for (BattleEntry battleEntry : HTTPServer.usersInQueue.keySet()) {
-                    // no battles between same accounts
-                    if (battleEntry.getUserRecord().Username().equals(user.Username())) {
-                        continue;
-                    }
-                    // if there isn't a battle summary, then this enemy doesn't have a partner
-                    if (HTTPServer.usersInQueue.get(battleEntry) == null) {
-                        double currDiff = Math.abs(battleEntry.getUserRecord().Elo() - user.Elo());
-                        if (currDiff < smallestEloDiff) {
-                            smallestEloDiff = currDiff;
-                            enemy = battleEntry;
-                        }
-                    }
-                }
-            }
-
-            // if no battle foes are present, register yourself and wait for other players
-            if (enemy == null) {
-                BattleEntry battleEntry = new BattleEntry(rc.getValue("Authorization"), user);
-                synchronized (HTTPServer.usersInQueue) {
-                    HTTPServer.usersInQueue.put(battleEntry, null);
-                }
-                long time = new Date().getTime();
-                // the client has to wait in the worst case scenario 60 seconds, before the connection is closed
-                long maxWaitTime = 1000 * 60;
-                String battleResult = null;
-                while ((time + maxWaitTime) >= new Date().getTime()) {
-                    try {
-                        synchronized (HTTPServer.usersInQueue) {
-                            battleResult = HTTPServer.usersInQueue.get(battleEntry);
-                        }
-                        // If a battleResult shows up, someone battled us or is just about to
-                        if (battleResult != null) {
-                            // if this Battle is about to take place, wait a little longer
-                            if (battleResult.equals("taken")) {
-                                maxWaitTime += 5000;
-                                Thread.sleep(500);
-                                continue;
-                            }
-                            break;
-                        }
-
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        synchronized (HTTPServer.usersInQueue) {
-                            HTTPServer.usersInQueue.remove(battleEntry);
-                        }
-                        e.printStackTrace();
-                        return false;
-                    }
-                }
-
-                synchronized (HTTPServer.usersInQueue) {
-                    HTTPServer.usersInQueue.remove(battleEntry);
-                }
-                if (battleResult != null) {
-                    RequestContext.writeToSocket(200, battleResult, out);
-                    return true;
-                } else {
-                    RequestContext.writeToSocket(404, "No battle partners were found. Please try again later.", out);
-                }
-            }
-            else {
-                // "Book" this battle
-                synchronized (HTTPServer.usersInQueue) {
-                    HTTPServer.usersInQueue.put(enemy, "taken");
-                }
-                String response = HTTPServer.db.simulateBattle(rc.getValue("Authorization"), enemy.getToken());
-                if (response != null) {
-                    synchronized (HTTPServer.usersInQueue) {
-                        HTTPServer.usersInQueue.put(enemy, response);
-                    }
-
-                    RequestContext.writeToSocket(200, response, out);
-                    return true;
-                }
-
-                RequestContext.writeToSocket(500, "An error occured while simulating a battle. Please try again later.", out);
-            }
-
-        }
-        else if (parts[1].equalsIgnoreCase("tradings")) {
-            rc.setValue("Authorization", rc.getValue("Authorization").substring("Basic ".length()));
-
-            if (parts.length == 3) {
-
-                messageStr = messageStr.replaceAll("\"", "");
-                if (HTTPServer.db.tryToTrade(rc.getValue("Authorization"), parts[2], messageStr)) {
-                    RequestContext.writeToSocket(200, "Successfully traded", out);
-                    return true;
-                } else {
-                    RequestContext.writeToSocket(400, "An error occurred while processing the request. " +
-                            "Please check the trade requirements and verify that your token is valid.", out);
-                }
-            } else {
-                try {
-                    TradeOfferRecord tradeOfferRecord = mapper.readValue(messageStr, new TypeReference<TradeOfferRecord>() {});
-                    if (HTTPServer.db.insertTradeOffer(rc.getValue("Authorization"), tradeOfferRecord)) {
-                        RequestContext.writeToSocket(200, "Successfully inserted trade offer", out);
-                        return true;
-                    } else {
-                        RequestContext.writeToSocket(400, "An error occurred while processing the request. " +
-                                "Please check whether you possess the specified card and verify that your token is valid.", out);
-                    }
-                } catch (JsonProcessingException e) {
-                    //e.printStackTrace();
-                    RequestContext.writeToSocket(400, "Wrong body format", out);
-                    return false;
-                }
-
-            }
-        }
-
-        return false;
+        return postHandler.getResult();
     }
 
     public synchronized boolean handlePut(RequestContext rc, BufferedReader in, BufferedWriter out) {
-        String[] parts = rc.getValue("url").split("/");
-        if (parts.length < 2 || rc.getValue("Authorization") == null) {
-            return false;
-        }
-
-        int counter = 0;
-        int contentLength = Integer.parseInt(rc.getValue("Content-Length"));
-        StringBuilder message = new StringBuilder();
+        PutHandler putHandler = new PutHandler(rc, in, out);
+        putHandler.start();
         try {
-            while (counter < contentLength) {
-                message.append((char) in.read());
-                counter++;
-            }
-        } catch (IOException ioException) {
-            return false;
+            putHandler.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
-
-        String messageStr = message.toString();
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
-        mapper.enable(SerializationFeature.INDENT_OUTPUT);
-
-        if (parts[1].equalsIgnoreCase("deck")) {
-            rc.setValue("Authorization", rc.getValue("Authorization").substring("Basic ".length()));
-            try {
-                ArrayList<String> cardIds = mapper.readValue(messageStr, new TypeReference<ArrayList<String>>() {});
-                if (HTTPServer.db.updateDeck(rc.getValue("Authorization"), cardIds)) {
-                    RequestContext.writeToSocket(200, "Everything is A-Ok", out);
-                } else {
-                    RequestContext.writeToSocket(400, "Didn't alter deck. Please check that you have selected 4 cards which are in your possession", out);
-                }
-            } catch (JsonProcessingException e) {
-                e.printStackTrace();
-            }
-        }
-        else if (parts[1].equalsIgnoreCase("users")) {
-            if (parts.length < 3) {
-                RequestContext.writeToSocket(400, "You are missing the username in the url. Correct example: server/users/altenhof", out);
-                return false;
-            }
-            rc.setValue("Authorization", rc.getValue("Authorization").substring("Basic ".length()));
-
-            try {
-                UserRecord user = mapper.readValue(messageStr, new TypeReference<UserRecord>() {});
-                // just to make sure, that the user doesn't try to update his elo or coins ;)
-                user = new UserRecord(user.Username(), user.Password(), user.Name(), user.Bio(), user.Image(), null, null, null, null);
-                if (HTTPServer.db.updateUser(user, parts[2], rc.getValue("Authorization"))) {
-                    RequestContext.writeToSocket(200, "User was updated", out);
-                    return true;
-                } else {
-                    RequestContext.writeToSocket(200, "An error occurred. Please check the specified token and username", out);
-                    return false;
-                }
-            } catch (JsonProcessingException e) {
-                e.printStackTrace();
-            }
-
-        }
-
-        RequestContext.writeToSocket(400, "Could not parse request. Please check whether the url is correct.", out);
-        return false;
+        return putHandler.getResult();
+        //return PutHandler.handlePut(rc, in, out);
     }
 
     public synchronized boolean handleDelete(RequestContext rc, BufferedWriter out) {
-        String[] parts = rc.getValue("url").split("/");
-        if (parts.length < 3 || rc.getValue("Authorization") == null) {
-            RequestContext.writeToSocket(400, "Malformed url", out);
-            return false;
+        DeleteHandler deleteHandler = new DeleteHandler(rc, out);
+        deleteHandler.start();
+        try {
+            deleteHandler.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
-
-        if (parts[1].equalsIgnoreCase("tradings")) {
-            rc.setValue("Authorization", rc.getValue("Authorization").substring("Basic ".length()));
-
-            if (HTTPServer.db.deleteTradingOffer(rc.getValue("Authorization"), parts[2])) {
-                RequestContext.writeToSocket(200, "Successfully deleted trading offer", out);
-                return true;
-            } else {
-                RequestContext.writeToSocket(400, "An error occurred while trying to delete offer. Please verify that token is valid", out);
-            }
-        }
-
-        return false;
+        return deleteHandler.getResult();
+        //return DeleteHandler.handleDelete(rc, out);
     }
 }

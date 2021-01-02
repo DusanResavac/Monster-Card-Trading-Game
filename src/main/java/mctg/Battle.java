@@ -45,7 +45,9 @@ public class Battle {
         StringBuilder summary = new StringBuilder();
         // starting attacker is being selected randomly
         boolean player1Attacks = Math.random() >= 0.5;
-        summary.append("Battle begins: Starting attacker: ").append(player1Attacks ? username1 : username2).append(" against ").append(player1Attacks ? username2 : username1).append(System.lineSeparator());
+        summary.append("Battle begins: Starting attacker: ").append(player1Attacks ? username1 : username2)
+                .append(System.lineSeparator()).append("------ ").append(username1).append(" against ").append(username2).append(" ------")
+                .append(System.lineSeparator());
         while (rounds < 100 && deck1.size() > 0 && deck2.size() > 0) {
             Random ran = new Random();
             Card card1 = deck1.get(ran.nextInt(deck1.size()));
@@ -53,7 +55,7 @@ public class Battle {
             // if result > 0, then card1 received more damage and therefore loses
             double roundResult = card1.calculateIncomingDamage(card2) - card2.calculateIncomingDamage(card1);
 
-            summary.append(String.format("%s vs %s ---- ", card1.toStringShort(),  card2.toStringShort()));
+            summary.append(String.format("%2d. %-20s vs %-20s ---- ", rounds+1, card1.toStringSimple(),  card2.toStringSimple()));
 
             if (roundResult == 0) {
                 // Ties never led to a winner, that's why I implemented the attacker's advantage,

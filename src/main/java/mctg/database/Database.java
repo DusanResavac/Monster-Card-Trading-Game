@@ -29,10 +29,9 @@ public class Database {
             } else {
                 db.simulateBattle("kienboec-mtcgToken", "altenhof-mtcgToken");
             }
-        }*/
-        System.out.println(Spell.class.isAssignableFrom(Spell.class));
+        }
+        System.out.println(Spell.class.isAssignableFrom(Spell.class));*/
     }
-
 
 
     public void openConnection(String url, String user, String password) {
@@ -47,6 +46,29 @@ public class Database {
         connection.close();
         connection = null;
     }
+
+
+    public boolean deleteEveryEntry() {
+
+        try {
+            connection.createStatement().execute("delete from stack_card");
+            connection.createStatement().execute("delete from package_card");
+            connection.createStatement().execute("delete from trading_area");
+            connection.createStatement().execute("delete from package");
+            connection.createStatement().execute("delete from card");
+            connection.createStatement().execute("delete from session");
+            connection.createStatement().execute("delete from users");
+            return true;
+        } catch (SQLException sqlException) {
+            sqlException.printStackTrace();
+            return false;
+        }
+    }
+
+
+    /*
+        ------------------ Validation ------------------
+     */
 
     public boolean isTokenValid (String token) {
         try {
@@ -84,11 +106,22 @@ public class Database {
         return false;
     }
 
-    public boolean insertPackage (ArrayList<CardRecord> cardRecords, String token) {
+    /*
+        ------------------ Packages ------------------
+     */
+
+    public boolean insertPackage (List<CardRecord> cardRecords, String token) {
         if (!tokenMatchesUsername(token, "admin") || !isTokenValid(token)) {
             return false;
         }
         try {
+            connection.setAutoCommit(false);
+            connection.commit();
+
+            if (cardRecords.size() != 5) {
+                throw new SQLException();
+            }
+
             var stmt = connection.createStatement();
             stmt.executeUpdate("insert into package default values", Statement.RETURN_GENERATED_KEYS);
             ResultSet rs = stmt.getGeneratedKeys();
@@ -96,7 +129,7 @@ public class Database {
             if (rs.next()) {
                 packageId = rs.getInt(1);
             } else {
-                return false;
+                throw new SQLException();
             }
             stmt.close();
             var stmtCard = connection.prepareStatement("insert into card (id, type, damage, element) values (?, ?, ?, ?)");
@@ -115,6 +148,12 @@ public class Database {
                     nameLow = nameLow.replace("fire", "");
                 } else if (nameLow.contains("regular")) {
                     nameLow = nameLow.replace("regular", "");
+                } else if (nameLow.contains("ice")) {
+                    el = Element.ICE;
+                    nameLow = nameLow.replace("ice", "");
+                } else if (nameLow.contains("wind")) {
+                    el = Element.WIND;
+                    nameLow = nameLow.replace("wind", "");
                 }
                 // capitalize first character
                 nameLow = nameLow.toUpperCase().charAt(0) + nameLow.substring(1);
@@ -130,9 +169,16 @@ public class Database {
             }
             stmtCard.close();
             stmtPackageCard.close();
+            connection.commit();
             return true;
         } catch (SQLException sqlException) {
-            sqlException.printStackTrace();
+            try {
+                connection.rollback();
+                connection.setAutoCommit(true);
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+            }
+            //sqlException.printStackTrace();
         }
         return false;
     }
@@ -142,6 +188,9 @@ public class Database {
             return "token";
         }
         try {
+            connection.setAutoCommit(false);
+            connection.commit();
+
             var stmt = connection.prepareStatement("select coins, user_id from users join session s on users.id = s.user_id where token = ?");
             stmt.setString(1, token);
             var res = stmt.executeQuery();
@@ -152,6 +201,8 @@ public class Database {
                 var resPackage = stmt2.executeQuery();
                 // if no packages are available
                 if (!resPackage.next()) {
+                    connection.rollback();
+                    connection.setAutoCommit(true);
                     return "package";
                 }
                 int packageId = resPackage.getInt(1);
@@ -177,12 +228,14 @@ public class Database {
                 while (res.next()) {
                     stmt2.setString(1, res.getString(1));
                     stmt2.setInt(2, userId);
-                    stmt2.execute();
+                    stmt2.executeUpdate();
                     double damage = res.getDouble(2);
                     StringBuilder stars = new StringBuilder();
-                    for (int boundary: Card.rarityDamage.get(res.getString(3))) {
-                        if (damage >= boundary) {
-                            stars.append(inTerminal ? "*" : "\uD83D\uDFCA");
+                    if (Card.rarityDamage.get(res.getString(3)) != null) {
+                        for (int boundary : Card.rarityDamage.get(res.getString(3))) {
+                            if (damage >= boundary) {
+                                stars.append(inTerminal ? "*" : "\uD83D\uDFCA");
+                            }
                         }
                     }
                     stars.append(inTerminal ? "*" : "\uD83D\uDFCA");
@@ -193,24 +246,38 @@ public class Database {
                 // delete package after it has been acquired
                 connection.createStatement().execute("delete from package where id = " + packageId);
 
+                connection.commit();
+                connection.setAutoCommit(true);
                 return rarityResult.toString();
             }
+            connection.rollback();
+            connection.setAutoCommit(true);
             return "coins";
-        } catch (SQLException sqlException) {
-            sqlException.printStackTrace();
+        } catch (Exception e) {
+            try {
+                connection.rollback();
+                connection.setAutoCommit(true);
+            } catch (SQLException sqlException) {
+                sqlException.printStackTrace();
+            }
+            e.printStackTrace();
         }
         return null;
     }
 
+    /*
+        ------------------ USERS ------------------
+     */
 
     public boolean insertUsers(UserRecord user) {
         try {
-            var statement = connection.prepareStatement("insert into users (username, password, name, bio, image, coins, elo, wins, gamesplayed) values (?,?,?,?,?, 20, 100.0, 0, 0)");
+            var statement = connection.prepareStatement("insert into users (username, password, name, bio, image, coins, elo, wins, gamesplayed) values (?,?,?,?,?,?, 100.0, 0, 0)");
             statement.setString(1, user.Username());
             statement.setString(2, generateHash(user.Password()));
             statement.setString(3, user.Name());
             statement.setString(4, user.Bio());
             statement.setString(5, user.Image());
+            statement.setInt(6, user.Coins());
 
             statement.execute();
             return true;
@@ -219,73 +286,6 @@ public class Database {
             return false;
         }
 
-    }
-
-    public boolean deleteUsers(String username) {
-        /*if (!tokenMatchesUsername(token, Username) || !isTokenValid(token)) {
-            return false;
-        }*/
-        try {
-            // If there is a user with the stated constellation of token and Username, it should have at least one record - take the latest record
-            var statement = connection.prepareStatement("select id from users where username = ?");
-            //statement.setString(1, token);
-            statement.setString(1, username);
-            ResultSet res = statement.executeQuery();
-            if (res.next()) {
-                var statement2 = connection.prepareStatement("delete from users where id = ?");
-                statement2.setInt(1, res.getInt(1));
-                statement2.execute();
-                statement2.close();
-                statement.close();
-                return true;
-            }
-            statement.close();
-            // Token does not exist - at least not with specified account
-            return false;
-        } catch (SQLException sqlException) {
-            sqlException.printStackTrace();
-            return false;
-        }
-    }
-
-    private Card getCorrectCard (String type, double damage, Element element, String id) {
-        try {
-            // A little bit of reflection in my life
-            Class<?> cl = Class.forName("mctg." + type);
-            return (Card) cl.getDeclaredConstructor(new Class[] {double.class, Element.class, String.class}).newInstance(damage, element, id);
-        } catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
-            //e.printStackTrace();
-            // If nothing's found: Look how they've massacred my boy :(  (Because of the obligatory curl scripts)
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    public List<Card> getCards (String token, boolean onlyInDeck) {
-        if (!isTokenValid(token)) {
-            return null;
-        }
-        try {
-            var statement = connection.prepareStatement("select type, damage, element, stack_card.card_id, locked, indeck from stack_card " +
-                    "join card c on stack_card.card_id = c.id " +
-                    "join users u on stack_card.user_id = u.id " +
-                    "join session s on u.id = s.user_id where token = ?" + (onlyInDeck ? " and indeck = true" : ""));
-            statement.setString(1, token);
-            var res = statement.executeQuery();
-            List<Card> result = new ArrayList<>();
-            while (res.next()) {
-                Card card = getCorrectCard(res.getString(1), res.getDouble(2), Element.valueOf(res.getString(3).toUpperCase()), res.getString(4));
-                if (card != null) {
-                    card.setLockedFromUsing(res.getBoolean(5));
-                    card.setInDeck(res.getBoolean(6));
-                    result.add(card);
-                }
-            }
-            return result;
-        } catch (SQLException sqlException) {
-            sqlException.printStackTrace();
-        }
-        return null;
     }
 
     public String loginUser (String username, String password) {
@@ -316,7 +316,7 @@ public class Database {
      * @param str der zu hashende String
      * @return hash
      */
-    private String generateHash (String str) {
+    public String generateHash (String str) {
         String generatedHash = null;
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-512");
@@ -338,6 +338,28 @@ public class Database {
             e.printStackTrace();
         }
         return generatedHash;
+    }
+
+    public UserRecord getUserData(String token, String username) {
+        if (username != null && !tokenMatchesUsername(token, username) || !isTokenValid(token)) {
+            return null;
+        }
+        try {
+            var stmt = connection.prepareStatement("select name, bio, image, elo, gamesplayed, wins, username, password, coins from users join session s on users.id = s.user_id where token = ?" + (username == null ? "" : " and username = ?"));
+            stmt.setString(1, token);
+            if (username != null) {
+                stmt.setString(2, username);
+            }
+            var res = stmt.executeQuery();
+
+            if (res.next()) {
+                return new UserRecord(res.getString(7), res.getString(8), res.getString(1), res.getString(2), res.getString(3), res.getInt(9), res.getDouble(4), res.getInt(5), res.getInt(6));
+            }
+        } catch (SQLException sqlException) {
+            sqlException.printStackTrace();
+        }
+
+        return null;
     }
 
     public boolean updateUser(UserRecord user, String username, String token) {
@@ -364,6 +386,69 @@ public class Database {
         }
     }
 
+    /*
+        ------------------ Cards, Deck, Statistics ------------------
+     */
+
+    private boolean isCorrectClassName (String className) {
+        try {
+            Class.forName(className);
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+
+    private Card getCorrectCard (String type, double damage, Element element, String id) {
+        try {
+            // A little bit of reflection in my life
+            String className = "";
+            if (isCorrectClassName("mctg." + type)) {
+                className = "mctg." + type;
+            } else if (isCorrectClassName("mctg.monsters." + type)) {
+                className = "mctg.monsters." + type;
+            } else if (isCorrectClassName("mctg.traps." + type)) {
+                className = "mctg.traps." + type;
+            } else {
+                return null;
+            }
+            Class<?> cl = Class.forName(className);
+            return (Card) cl.getDeclaredConstructor(new Class[] {double.class, Element.class, String.class}).newInstance(damage, element, id);
+        } catch (Exception e) {
+            //e.printStackTrace();
+            // If nothing's found: Look how they've massacred my boy :(  (Because of the obligatory curl scripts)
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public List<Card> getCards (String token, boolean onlyInDeck) {
+        if (!isTokenValid(token)) {
+            return null;
+        }
+        try {
+            var statement = connection.prepareStatement("select type, damage, element, stack_card.card_id, locked, indeck from stack_card " +
+                    "join card c on stack_card.card_id = c.id " +
+                    "join users u on stack_card.user_id = u.id " +
+                    "join session s on u.id = s.user_id where token = ?" + (onlyInDeck ? " and indeck = true" : "") + " order by type, damage desc");
+            statement.setString(1, token);
+            var res = statement.executeQuery();
+            List<Card> result = new ArrayList<>();
+            while (res.next()) {
+                Card card = getCorrectCard(res.getString(1), res.getDouble(2), Element.valueOf(res.getString(3).toUpperCase()), res.getString(4));
+                if (card != null) {
+                    card.setLockedFromUsing(res.getBoolean(5));
+                    card.setInDeck(res.getBoolean(6));
+                    result.add(card);
+                }
+            }
+            return result;
+        } catch (SQLException sqlException) {
+            sqlException.printStackTrace();
+        }
+        return null;
+    }
+
     public boolean updateDeck(String token, List<String> cardIds) {
         if (!isTokenValid(token)) {
             return false;
@@ -379,7 +464,7 @@ public class Database {
             stmt.setString(1, token);
             var res = stmt.executeQuery();
             if (!res.next()) {
-                return false;
+                throw new SQLException();
             }
             int userId = res.getInt(1);
             // userId aus der Datenbank -> keine SQL Injection möglich
@@ -423,28 +508,6 @@ public class Database {
 
 
         return false;
-    }
-
-    public UserRecord getUserData(String token, String username) {
-        if (username != null && !tokenMatchesUsername(token, username) || !isTokenValid(token)) {
-            return null;
-        }
-        try {
-            var stmt = connection.prepareStatement("select name, bio, image, elo, gamesplayed, wins, username from users join session s on users.id = s.user_id where token = ?" + (username == null ? "" : " and username = ?"));
-            stmt.setString(1, token);
-            if (username != null) {
-                stmt.setString(2, username);
-            }
-            var res = stmt.executeQuery();
-
-            if (res.next()) {
-                return new UserRecord(res.getString(7), null, res.getString(1), res.getString(2), res.getString(3), null, res.getDouble(4), res.getInt(5), res.getInt(6));
-            }
-        } catch (SQLException sqlException) {
-            sqlException.printStackTrace();
-        }
-
-        return null;
     }
 
     public String getStats(String token) {
@@ -503,6 +566,10 @@ public class Database {
 
         return null;
     }
+
+    /*
+        ------------------ Battle ------------------
+     */
 
     public String simulateBattle (String token1, String token2) {
         if (!isTokenValid(token1) || !isTokenValid(token2)) {
@@ -597,6 +664,10 @@ public class Database {
         return null;
     }
 
+    /*
+        ------------------ Trading ------------------
+     */
+
     public List<TradeOffer> getTradingOffers (String token) {
         if (!isTokenValid(token)) {
             return null;
@@ -637,12 +708,12 @@ public class Database {
             stmt.setString(1, token);
             stmt.setString(2, tradeOfferRecord.CardToTrade());
             var res = stmt.executeQuery();
-            int userId = 0;
+            int userId = -1;
             if (res.next()) {
                 userId = res.getInt(1);
             }
             stmt.close();
-            if (userId == 0) {
+            if (userId < 0) {
                 return false;
             }
             stmt = connection.prepareStatement("insert into trading_area (id, card_id, user_id, wantedtype, minimumdamage) values (?, ?, ?, ?, ?)");
@@ -715,9 +786,10 @@ public class Database {
 
             // test if criteria are met
             if (
-                    minimumDamage <= damage ||
-                    wantedType.equalsIgnoreCase("monster") && Monster.class.isAssignableFrom(Class.forName(cardType)) ||
-                    wantedType.equalsIgnoreCase("spell") && Spell.class.isAssignableFrom(Class.forName(cardType))) {
+                    minimumDamage <= damage &&
+                            (wantedType.equalsIgnoreCase("monster") && Monster.class.isAssignableFrom(Class.forName("mctg.monsters." + cardType)) ||
+                            wantedType.equalsIgnoreCase("spell") && Spell.class.isAssignableFrom(Class.forName("mctg." + cardType)) ||
+                            wantedType.equalsIgnoreCase("trap") && Trap.class.isAssignableFrom(Class.forName("mctg.traps." + cardType)))) {
 
                 // first add both cards to the players
                 stmt = connection.prepareStatement("insert into stack_card (card_id, user_id, locked, indeck) VALUES (?, ?, false, false)");

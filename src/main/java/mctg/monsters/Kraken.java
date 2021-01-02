@@ -1,4 +1,9 @@
-package mctg;
+package mctg.monsters;
+
+import mctg.Card;
+import mctg.Element;
+import mctg.Monster;
+import mctg.Spell;
 
 public class Kraken extends Monster {
 

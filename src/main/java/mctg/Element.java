@@ -3,5 +3,7 @@ package mctg;
 public enum Element {
     FIRE,
     WATER,
-    NORMAL
+    NORMAL,
+    ICE,
+    WIND
 }

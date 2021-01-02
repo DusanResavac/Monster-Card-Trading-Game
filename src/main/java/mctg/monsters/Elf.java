@@ -1,4 +1,8 @@
-package mctg;
+package mctg.monsters;
+
+import mctg.Card;
+import mctg.Element;
+import mctg.Monster;
 
 public class Elf extends Monster {
 

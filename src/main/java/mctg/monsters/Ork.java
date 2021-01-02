@@ -1,4 +1,7 @@
-package mctg;
+package mctg.monsters;
+
+import mctg.Element;
+import mctg.Monster;
 
 public class Ork extends Monster {
 

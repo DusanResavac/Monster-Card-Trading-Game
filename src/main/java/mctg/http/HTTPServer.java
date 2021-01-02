@@ -18,9 +18,9 @@ public class HTTPServer {
 
     public static int currentId = 0;
     protected static HashMap<Integer, String> messages = new HashMap<>();
-    protected static Database db;
-    protected static final HashMap<BattleEntry, String> usersInQueue = new HashMap<>();
-    protected static final String UNAUTHORIZED = "Token is no longer valid, please try logging into your account.";
+    public static Database db;
+    public static final HashMap<BattleEntry, String> usersInQueue = new HashMap<>();
+    public static final String UNAUTHORIZED = "Token is no longer valid, please try logging into your account.";
 
     public HTTPServer (int port) {
         try {
