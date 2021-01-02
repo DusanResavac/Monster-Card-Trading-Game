@@ -108,7 +108,7 @@ select * from session;
 select * from package;
 select * from card;
 select * from package_card;
-select card_id, damage, element, type from stack_card join card c on stack_card.card_id = c.id;
+select card_id, damage, element, type, user_id from stack_card join card c on stack_card.card_id = c.id;
 select * from trading_area;
 
 

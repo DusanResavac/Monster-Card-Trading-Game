@@ -53,9 +53,13 @@ public class Battle {
             Card card1 = deck1.get(ran.nextInt(deck1.size()));
             Card card2 = deck2.get(ran.nextInt(deck2.size()));
             // if result > 0, then card1 received more damage and therefore loses
-            double roundResult = card1.calculateIncomingDamage(card2) - card2.calculateIncomingDamage(card1);
+            double dmg1 = card2.calculateIncomingDamage(card1), dmg2 = card1.calculateIncomingDamage(card2);
+            double roundResult = dmg2 - dmg1;
 
-            summary.append(String.format("%2d. %-20s vs %-20s ---- ", rounds+1, card1.toStringSimple(),  card2.toStringSimple()));
+            summary.append(String.format("%2d. %-20s vs %-20s -- dmg: %s vs %s -- ", rounds+1, card1.toStringSimple(), card2.toStringSimple(),
+                    // better presentation
+                    dmg1 == Double.MAX_VALUE ? "Infinity" : String.format("%8.1f", dmg1),
+                    dmg2 == Double.MAX_VALUE ? "Infinity" : String.format("%-8.1f", dmg2)));
 
             if (roundResult == 0) {
                 // Ties never led to a winner, that's why I implemented the attacker's advantage,
@@ -68,24 +72,18 @@ public class Battle {
                 }
                 summary.append("TIE - Attacker: ")
                         .append(player1Attacks ? username1 : username2)
-                        .append(" wins | Remaining cards: ")
-                        .append(username1)
-                        .append(": ")
+                        .append(" wins | cards: ")
                         .append(deck1.size())
                         .append(" - ")
-                        .append(username2)
-                        .append(": ")
                         .append(deck2.size());
             }
             if (roundResult > 0) {
                 transferCardToDeck(deck1, deck2, card1.getId());
-                summary.append(username2).append(" wins | Remaining cards: ").append(username1).append(": ").append(deck1.size()).append(" - ")
-                        .append(username2).append(": ").append(deck2.size());
+                summary.append(String.format("%-17s", username2 + " wins ")).append("| cards: ").append(deck1.size()).append(" - ").append(deck2.size());
             }
             if (roundResult < 0) {
                 transferCardToDeck(deck2, deck1, card2.getId());
-                summary.append(username1).append(" wins | Remaining cards: ").append(username1).append(": ").append(deck1.size()).append(" - ")
-                        .append(username2).append(": ").append(deck2.size());
+                summary.append(String.format("%-17s", username1 + " wins ")).append("| cards: ").append(deck1.size()).append(" - ").append(deck2.size());
             }
             rounds++;
             summary.append(System.lineSeparator());

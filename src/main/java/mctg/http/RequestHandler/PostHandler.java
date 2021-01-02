@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import mctg.BattleEntry;
+import mctg.Card;
 import mctg.http.ConnectionInterface;
 import mctg.http.HTTPServer;
 import mctg.http.Jackson.CardRecord;
@@ -19,6 +20,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 public class PostHandler extends Thread {
 
@@ -202,6 +204,11 @@ public class PostHandler extends Thread {
             RequestContext.writeToSocket(400, HTTPServer.UNAUTHORIZED, out);
             return false;
         }
+        List<Card> cards = HTTPServer.db.getCards(rc.getValue("Authorization"), true);
+        if (cards == null || cards.size() != 4) {
+            RequestContext.writeToSocket(401, "You don't have a deck compliant to the rules. Please create one, before trying to start a battle", out);
+            return false;
+        }
 
         BattleEntry enemy = null;
 
@@ -270,7 +277,8 @@ public class PostHandler extends Thread {
             } else {
                 RequestContext.writeToSocket(404, "No battle partners were found. Please try again later.", out);
             }
-        } else {
+        }
+        else {
             // "Book" this battle
             synchronized (HTTPServer.usersInQueue) {
                 HTTPServer.usersInQueue.put(enemy, "taken");

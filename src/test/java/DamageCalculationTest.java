@@ -122,7 +122,7 @@ public class DamageCalculationTest {
         for (int i = 0; i < 10; i++) {
             double result = tDragon1.calculateIncomingDamage(lucky);
             // check if effect was activated
-            if (result == 99) {
+            if (result == 33 * 2.5) {
                 assertTrue(lucky.calculateIncomingDamage(tDragon1) < result);
             } else {
                 assertTrue(lucky.calculateIncomingDamage(tDragon1) > result);
