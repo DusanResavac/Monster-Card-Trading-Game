@@ -88,7 +88,7 @@ delete from session;
 delete from users;
 
 
-
+/*
 insert into users (username, password, name, bio, image, coins, elo) values
 ('admin', '3dd487570bbf0bc9abcbb98d7a738afca320bd984156c090b3732be75dfee6246a9ad33d28b9f7bbdecc0a723770fab0561fdc623fb3bd920905342ccd746e82', null, null, 'https://www.memesmonkey.com/images/memesmonkey/8c/8c4fafb301810373c6e37285e9ec7b03.jpeg', 20, 100);
 insert into session (user_id, token, createdAt) values
@@ -99,6 +99,7 @@ insert into users (username, password, name, bio, image, coins, elo) values
 ('kienboec', '3dd487570bbf0bc9abcbb98d7a738afca320bd984156c090b3732be75dfee6246a9ad33d28b9f7bbdecc0a723770fab0561fdc623fb3bd920905342ccd746e82', null, null, null, 20, 100);
 insert into session (user_id, token, createdAt) values
 ((select id from users where username = 'kienboec'), 'kienboec-mtcgToken', now());
+*/
 
 --insert into package default values;
 
@@ -117,7 +118,7 @@ select * from card order by id;
 select row_number() over (order by elo, wins, users.id desc), elo, gamesplayed, wins, username, token, users.id from users
     left join session s on users.id = s.user_id;
 
-update users set elo = 100, wins = 0, gamesPlayed = 0;
+--update users set elo = 100, wins = 0, gamesPlayed = 0;
 
 select  row_number() over (order by elo desc, wins desc, users.id desc), elo, gamesplayed, wins, username from users
     order by elo desc, wins desc, users.id desc;
