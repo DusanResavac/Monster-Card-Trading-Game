@@ -108,10 +108,11 @@ public class GetHandler extends Thread {
                 return;
             } else {
                 StringBuilder response = new StringBuilder();
-                response.append("        Card         |  wanted  |  dmg  |                 trade-ID             ").append(System.lineSeparator());
+                response.append("        Card         |  wanted  |  dmg  |                 trade-ID             |     username     ").append(System.lineSeparator());
                 for (TradeOffer tradeOffer: tradeOffers) {
                     Card card = tradeOffer.getCard();
-                    response.append(String.format("%s | %-8s | %5.1f | %s", card.toStringShort(), tradeOffer.getType(), tradeOffer.getMinimumDamage(), tradeOffer.getId()))
+                    response.append(String.format("%s | %-8s | %5.1f | %36s | %s", card.toStringShort(), tradeOffer.getType(),
+                            tradeOffer.getMinimumDamage(), tradeOffer.getId(), tradeOffer.getUsername()))
                             .append(System.lineSeparator());
                 }
                 RequestContext.writeToSocket(200, response.toString(), out);

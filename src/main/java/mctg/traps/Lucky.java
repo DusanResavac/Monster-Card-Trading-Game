@@ -16,6 +16,13 @@ public class Lucky extends Trap {
 
     @Override
     public double calculateIncomingDamage(Card card) {
+
+        if (card instanceof Lucky) {
+            if (Math.random() >= 0.7) {
+                return card.getDamage() * 2.5;
+            }
+        }
+
         return card.getDamage();
     }
 }

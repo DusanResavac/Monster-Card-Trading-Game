@@ -19,8 +19,11 @@ public abstract class Card {
         put("Dragon", new int[]{30, 40, 45, 50, 60});
         put("Knight", new int[]{20, 30, 40, 50, 60});
         put("Spell", new int[]{15, 25, 35, 45, 55});
-        put("Wizard", new int[]{20, 30, 40, 50, 55});
+        put("Wizard", new int[]{20, 28, 37, 47, 55});
         put("Kraken", new int[]{15, 25, 33, 46, 62});
+        put("Nokia", new int[]{0, 0, 0, 0, 0});
+        put("Lego", new int[]{15, 25, 35, 45, 50});
+        put("Lucky", new int[]{13, 20, 25, 32, 39});
     }};
 
     public Card (double damage, Element element, String id) {

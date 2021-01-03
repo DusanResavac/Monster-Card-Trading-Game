@@ -579,6 +579,7 @@ public class Database {
         List<Card> deck1 = getCards(token1, true);
         List<Card> deck2 = getCards(token2, true);
 
+        // if there is a winner
         if (deck1.size() == 4 && deck2.size() == 4) {
             UserRecord user1 = null, user2 = null;
             try {
@@ -645,6 +646,7 @@ public class Database {
                 }
 
             }
+            // if there is a tie
             else {
                 try {
                     var stmt = connection.prepareStatement("update users set gamesplayed = ? where username = ?");
@@ -673,7 +675,7 @@ public class Database {
             return null;
         }
         try {
-            var stmt = connection.prepareStatement("select minimumDamage, wantedType, type, damage, element, c.id, ta.id from trading_area ta" +
+            var stmt = connection.prepareStatement("select minimumDamage, wantedType, type, damage, element, c.id, ta.id, u.username from trading_area ta" +
                     "    join stack_card sc on ta.card_id = sc.card_id" +
                     "    join card c on ta.card_id = c.id and sc.card_id = c.id" +
                     "    join users u on ta.user_id = u.id and sc.user_id = u.id");
@@ -684,7 +686,7 @@ public class Database {
                 if (card == null) {
                     return null;
                 }
-                tradeOffers.add(new TradeOffer(card, res.getString(7), res.getDouble(1), res.getString(2)));
+                tradeOffers.add(new TradeOffer(card, res.getString(7), res.getDouble(1), res.getString(2), res.getString(8)));
             }
             return tradeOffers;
         } catch (SQLException sqlException) {

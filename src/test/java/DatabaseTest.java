@@ -168,7 +168,7 @@ public class DatabaseTest {
                 new CardRecord("3-Knight1", "FireKnight", 60.0),
                 new CardRecord("3-Spell1", "WindSpell", 43.0),
                 new CardRecord("3-Kraken1", "WaterKraken", 42.0),
-                new CardRecord("3-Goblin1", "Goblin", 25.0)));
+                new CardRecord("3-Lego1", "Lego", 37.0)));
         assertTrue(db.insertPackage(cardRecords3, "admin-mtcgToken"));
     }
 
@@ -344,12 +344,22 @@ public class DatabaseTest {
         assertTrue(adminCards.size() == 1 && adminCards.get(0).equals("Dragon1"));
         // test if it can be added to deck
         List<String> cardIdsAdmin = new ArrayList<>(Arrays.asList(
-                "Wizard1",
+                "Spell1",
                 "Dragon1",
                 "Elf1",
                 "Dragon2"
         ));
         assertFalse(db.updateDeck("admin-mtcgToken", cardIdsAdmin));
+
+        /*
+        ADMIN STACK:  CardId, inDeck
+                "Lucky1", true
+                "Spell1", true
+                "Elf1", true
+                "Dragon2", true
+                "Dragon1", false   and locked
+         */
+
 
         // test if you can make trade offer with card, that is currently in deck
         assertFalse(db.insertTradeOffer("admin-mtcgToken", new TradeOfferRecord("Trade2", "Spell1", "spell", 20.0)));
@@ -385,6 +395,32 @@ public class DatabaseTest {
         List<String> altenhofCards = db.getCards("altenhof-mtcgToken", false).stream().map(Card::getId).collect(Collectors.toList());
         assertFalse(adminCards.contains("Dragon1"));
         assertTrue(altenhofCards.contains("Dragon1"));
+
+        /*
+        ADMIN STACK:  CardId, inDeck
+                "Lucky1", true
+                "Spell1", true
+                "Elf1", true
+                "Dragon2", true
+                "3-Knight1", false
+         */
+
+
+        // altenhof wants to trade his Lego trap card
+        assertTrue(db.insertTradeOffer("altenhof-mtcgToken", new TradeOfferRecord("Trade2", "3-Lego1", "trap", 30.0)));
+        // wrong type
+        assertFalse(db.tryToTrade("admin-mtcgToken", "Trade2", "3-Knight1"));
+        // is in admin's deck
+        assertFalse(db.tryToTrade("admin-mtcgToken", "Trade2", "Lucky1"));
+        cardIdsAdmin = new ArrayList<>(Arrays.asList(
+                "3-Knight1",
+                "Dragon2",
+                "Spell1",
+                "Elf1"
+        ));
+        assertTrue(db.updateDeck("admin-mtcgToken", cardIdsAdmin));
+        assertTrue(db.tryToTrade("admin-mtcgToken", "Trade2", "Lucky1"));
+
 
     }
 

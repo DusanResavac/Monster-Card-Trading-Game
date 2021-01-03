@@ -191,8 +191,6 @@ public class PostHandler extends Thread {
         result = false;
     }
 
-
-
     public boolean getResult() {
         return result;
     }
@@ -239,7 +237,7 @@ public class PostHandler extends Thread {
                 HTTPServer.usersInQueue.put(battleEntry, null);
             }
             long time = new Date().getTime();
-            // the client has to wait in the worst case scenario 60 seconds, before the connection is closed
+            // In the worst case, the client has to wait scenario 60 seconds before the connection is closed
             long maxWaitTime = 1000 * 60;
             String battleResult = null;
             while ((time + maxWaitTime) >= new Date().getTime()) {
@@ -254,8 +252,9 @@ public class PostHandler extends Thread {
                             maxWaitTime += 5000;
                             Thread.sleep(500);
                             continue;
+                        } else {
+                            break;
                         }
-                        break;
                     }
 
                     Thread.sleep(1000);

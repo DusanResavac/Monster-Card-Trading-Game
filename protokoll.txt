@@ -1,0 +1,105 @@
+Technische Schritte:
+Ich habe die Karten in Unterkategorien geteilt (Monsters, Spells, Traps) und davon
+dann die einzelnen Klassen/Karten abgeleitet. Z.B.: Elf ist eine Monsterkarte, Lucky ist eine
+Fallenkarte
+
+Token haben eine Verfallszeit und sind 1 Jahr gültig. Dies kann einfach angepasst werden und
+die Generierung von Tokens kann ebenfalls anwendungssicherer gemacht werden(Pseudozufällig).
+
+Sollten Karten eine spezifische Regel haben (z.B.: Die Lego Karte verhindert sämtlichen Schaden
+durch Monster mit >= 50 Schaden), wird die Berechnung dort durchgeführt. Alles weitere wird
+der höheren Instanz weitergeleitet.
+
+Karten sind dank der Benutzung von Reflections beim Erstellen der Karten nach dem Auslesen
+aus der Datenbank relativ leicht erweiterbar. Dasselbe gilt auch für Elemente (ICE und WIND
+wurden zb. hinzugefügt). Zum Hinzufügen eines Elements mit den Verbindungen zu den anderen
+Elementen, muss folgendes getan werden:
+    1. Eintrag in Element enum
+    2. Tabelle in DamageMultiplier.java erweitern und Beziehung hinzufügen
+    3. In Database.java in der Methode insertPackage bei den "else if"-Bedingungen eine neue
+       Bedingung hinzufügen
+Für Kartentypen:
+    1. In Database.java in der Methode getCorrectCard bei den "else if"-Bedingungen eine
+       neue Bedingung hinzufügen
+    2. In derselben Klasse in der Methode tryToTrade beim Kommentar "test if criteria are met"
+       eine neue Bedingung hinzufügen
+Für Karten:
+    1. Je nachdem welche Effekte gelten, muss bei der calculateIncomingDamage Methode dieser Karte
+       oder der Methode von den anderen Klassen spezielle Bedingungen aufgestellt werden.
+Cooles Beispiel: Eine meiner Lieblingskarten ist die "Lucky"-Fallenkarte. Diese verursacht mit
+einer 30%igen Chance 2,5x Schaden und bei ihr wird das Element ignoriert (Obwohl Traps allgemein
+sehrwohl Elemente miteinbeziehen). Dafür musste ich bei den abstrakten Klassen Spell, Monster
+und Trap nur jeweils eine verschachtelte Bedingung aufstellen.
+
+Sollte eine Runde unentschieden ausgehen, gewinnt die Person die Runde, die derzeit der
+Angreifer ist. Der Angreifer wird am Anfang des Battles zufällig bestimmt und alterniert dann.
+Dies wurde deswegen gemacht, da bei manchen Konstellationen kein Gewinner bestimmt werden
+kann. (z.B.: Bei den test-curls)
+
+Das Packopening/Kaufen von Packages wurde um eine Raritätsanzeige verschönert ;). Dies basiert
+der Einfachheit halber auf dem Schadenswert, je nach Karte (Beispiel: Ein Drache muss mindestens
+60 Schaden haben, um 6 Sterne wert zu sein. Ein Goblin benötigt nur mindestens 40 Schaden)
+
+Die Elo wird anhand der Elodifferenz berechnet. Beispiel: Gewinnt ein Spieler1 mit 100 Elo
+gegen Spieler2 mit 200 Elo, bekommt er mehr Elo als wenn er gegen einen Spieler mit zb 120 Elo
+gewonnen hätte. Spieler2 wiederum verliert mehr Elo als wenn er gegen einen stärkeren Spieler
+gekämpft hätte. Umgekehrt wiederum: Sollte Spieler2 gewinnen, bekommt er weniger Elo als wenn
+er gegen einen Spieler mit 150 Elo gekämpft hätte. Ebenfalls würde Spieler1 dann weniger
+Elo verlieren. Die genaue Funktion ist hier: https://www.geogebra.org/calculator/vuv2fusj
+Die Elodifferenz ist x und wird mit EloVerlierer - EloGewinner berechnet. y ist der Elogewinn/
+Verlust. Der maximale Elo-Gewinn/Verlust beträgt 20 und das Minimum 0,5. Bei gleicher Elo
+ist der Gewinn/Verlust 3.
+Bsp: Elo200 verliert gegen Elo150 -> 200 - 150 = 50 -> Elo-Gewinn/Verlust: ca. 11
+2. Bsp: Elo150 verliert gegen Elo300 -> 150 - 300 = -150 -> Elo-Gewinn/Verlust: ca. 0,6
+
+Es existiert quasi ein Lobbysystem für Battles. Dies beschränkt sich aber darauf, dass der
+erste freie Spieler gewählt und dann der Kampf berechnet und in seinem Warteslot
+gespeichert wird. Der Wartende schaut immer wieder mal rein, ob jemand bereits einen Kampf
+mit ihm berechnet/ausgetragen hat. Dies könnte man so erweitern, dass eine gewisse Hemmschwelle
+für die Elodifferenz zweier Spieler immer weiter sinkt, umso mehr Zeit vergeht. Dadurch wäre
+es unwahrscheinlicher, dass ein starker, wartender Gegener gegen einen viel schwächeren
+kämpft, obwohl noch ein schwacher Gegener in der Lobby wartet.
+
+Probleme traten beim Aufteilen des Codes beim HTTP-Server auf. Früher wurden alle HTTP-Methoden
+in der Klasse Connections verarbeitet, was ich dann verschoben habe. Ich merkte, dass das
+Curl-Skript bei den Kämpfen nie einen Gegner finden würde. Dies hatte den Grund, dass
+anscheinend auch die Helferklassen gethreaded sein müssen, auch wenn es jeder einzelne
+HTTP-Request schon ist, da ansonsten gewartet wird, bis die Wartezeit eines Spielers abläuft.
+
+
+
+Wieso diese Unit-tests?
+DamageCalculationTest:
+Da dies eins der wichtigsten Kernelemente dieses Kartenspiels ist, fand ich es sehr wichtig
+sicherstellen zu können, dass es auch so einfach funktioniert und erweiterbar ist, wie ich
+es vorgesehen hatte.
+
+httpRequestsTest:
+Habe ich rausgelöscht, da sie nur mit der vorherigen Abgabe kompatibel waren und sie für
+diese Abgabe viel zu aufwendig geworden wären. Die alten unit tests zum http server sind
+auf github auf dem Rest-HTTP-WebServices Branch. Mir reichte zum Testen der Funktionen der
+Integrationtest mit curl.
+
+DatabaseTest:
+Ebenfalls war es mir sehr wichtig sicherzustellen, dass die internen Methoden zur
+Manipulation von Datenbankeinträgen so funktionieren, wie es von der Angabe gewollt war.
+(Mit kleinen Abwandlungen wie zb das Einbringen eines Angreifer/Abwehrer-Elements)
+Sollten die Methoden nicht wie erwartet funktionieren, könnte man die Grundfunktionen von
+den TradeOffers zb nicht gewährleisten.
+
+
+
+TimeSpent:
+Wirklich schwer zu sagen, da ich Tools wie zb Toggl nicht offen hatte.
+Bei der Befragung, die vor den Weihnachtsferien stattfand, gab ich an ca. 30% fertig zu sein.
+Ich würde nun sagen, dass ich damals vllt mit 20-25% fertig war, da einige Sachen doch
+aufwendiger waren als ursprünglich erwartet. Geschätzt: 40-55 Stunden
+
+
+
+Githistory siehe https://github.com/DusanResavac/Monster-Card-Trading-Game
+HTTP-Server wurde auf einem eigenen Branch für die erste Abgabe umgesetzt.
+Datenbankverarbeitung von TradingOffers/Tradingdeals wurde auf einem eigenen Branch umgesetzt.
+Commits sind wshl. leider nicht so regelmäßig, wie es gewünscht war.
+
+
