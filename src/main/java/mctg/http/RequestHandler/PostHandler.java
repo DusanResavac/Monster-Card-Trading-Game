@@ -95,21 +95,16 @@ public class PostHandler extends Thread {
                 return;
             }
             switch (response) {
-                case ("coins"):
-                    RequestContext.writeToSocket(402, "You don't have any coins left. " +
-                            "Try visiting our shop to acquire more coins and get those super rare cards! ;)", out);
-                    break;
-                case ("token"):
-                    RequestContext.writeToSocket(401, HTTPServer.UNAUTHORIZED, out);
-                    break;
-                case ("package"):
-                    RequestContext.writeToSocket(404, "There are no more packages left. " +
-                            "Please wait for the next drop of loot.", out);
-                    break;
-                default:
+                case ("coins") -> RequestContext.writeToSocket(402, "You don't have any coins left. " +
+                        "Try visiting our shop to acquire more coins and get those super rare cards! ;)", out);
+                case ("token") -> RequestContext.writeToSocket(401, HTTPServer.UNAUTHORIZED, out);
+                case ("package") -> RequestContext.writeToSocket(404, "There are no more packages left. " +
+                        "Please wait for the next drop of loot.", out);
+                default -> {
                     RequestContext.writeToSocket(200, response, out);
                     result = true;
                     return;
+                }
             }
         }
         else if (parts[1].equalsIgnoreCase("users")) {
@@ -196,7 +191,9 @@ public class PostHandler extends Thread {
     }
 
     private static boolean handleBattleRequest (RequestContext rc, BufferedWriter out) {
-        rc.setValue("Authorization", rc.getValue("Authorization").substring("Basic ".length()));
+        if (rc.getValue("Authorization").contains("Basic")) {
+            rc.setValue("Authorization", rc.getValue("Authorization").substring("Basic ".length()));
+        }
         UserRecord user = HTTPServer.db.getUserData(rc.getValue("Authorization"), null);
         if (user == null) {
             RequestContext.writeToSocket(400, HTTPServer.UNAUTHORIZED, out);
@@ -210,6 +207,7 @@ public class PostHandler extends Thread {
 
         BattleEntry enemy = null;
 
+        // get enemy
         synchronized (HTTPServer.usersInQueue) {
             double smallestEloDiff = Double.MAX_VALUE;
             for (BattleEntry battleEntry : HTTPServer.usersInQueue.keySet()) {
@@ -280,7 +278,18 @@ public class PostHandler extends Thread {
         else {
             // "Book" this battle
             synchronized (HTTPServer.usersInQueue) {
-                HTTPServer.usersInQueue.put(enemy, "taken");
+                // if taken in the meantime (very unlikely), got through the process again
+                if (HTTPServer.usersInQueue.get(enemy) == null) {
+                    HTTPServer.usersInQueue.put(enemy, "taken");
+                } else {
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                        return false;
+                    }
+                    return handleBattleRequest(rc, out);
+                }
             }
             String response = HTTPServer.db.simulateBattle(rc.getValue("Authorization"), enemy.getToken());
             if (response != null) {
@@ -291,7 +300,7 @@ public class PostHandler extends Thread {
                 RequestContext.writeToSocket(200, response, out);
                 return true;
             }
-            RequestContext.writeToSocket(500, "An error occured while simulating a battle. Please try again later.", out);
+            RequestContext.writeToSocket(500, "An error occurred while simulating a battle. Please try again later.", out);
         }
 
         return false;

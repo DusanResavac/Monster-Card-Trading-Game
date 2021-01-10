@@ -2,7 +2,7 @@ package mctg;
 
 import mctg.traps.Lucky;
 
-public abstract class Trap extends Card {
+public abstract class Trap extends Card implements DamageCalculation {
 
     public Trap(double damage, Element element, String id) {
         super(damage, element, id);

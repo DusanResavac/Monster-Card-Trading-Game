@@ -270,8 +270,10 @@ public class Database {
      */
 
     public boolean insertUsers(UserRecord user) {
-        try {
-            var statement = connection.prepareStatement("insert into users (username, password, name, bio, image, coins, elo, wins, gamesplayed) values (?,?,?,?,?,?, 100.0, 0, 0)");
+        try (
+                var statement = connection.prepareStatement("insert into users (username, password, name, bio, image, coins, elo, wins, gamesplayed) values (?,?,?,?,?,?, 100.0, 0, 0)");
+                ){
+
             statement.setString(1, user.Username());
             statement.setString(2, generateHash(user.Password()));
             statement.setString(3, user.Name());
