@@ -191,6 +191,11 @@ public class PostHandler extends Thread {
     }
 
     private static boolean handleBattleRequest (RequestContext rc, BufferedWriter out) {
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            //
+        }
         if (rc.getValue("Authorization").contains("Basic")) {
             rc.setValue("Authorization", rc.getValue("Authorization").substring("Basic ".length()));
         }

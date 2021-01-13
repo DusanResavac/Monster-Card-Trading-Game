@@ -109,8 +109,13 @@ select * from session;
 select * from package;
 select * from card;
 select * from package_card;
-select card_id, damage, element, type, user_id from stack_card join card c on stack_card.card_id = c.id;
+select card_id, damage, element, type, user_id, inDeck from stack_card join card c on stack_card.card_id = c.id order by user_id, inDeck desc;
 select * from trading_area;
+
+select distinct type, damage, element, stack_card.card_id, locked, indeck from stack_card
+                    join card c on stack_card.card_id = c.id
+                    join users u on stack_card.user_id = u.id
+                    join session s on u.id = s.user_id where token = 'kienboec-mtcgToken' and inDeck = true order by type, damage desc;
 
 
 select * from card order by id;

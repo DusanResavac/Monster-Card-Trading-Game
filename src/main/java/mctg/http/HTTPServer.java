@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -45,6 +46,12 @@ public class HTTPServer {
 
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            try {
+                db.closeConnection();
+            } catch (SQLException sqlException) {
+                sqlException.printStackTrace();
+            }
         }
     }
 

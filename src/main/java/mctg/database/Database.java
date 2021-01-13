@@ -429,7 +429,7 @@ public class Database {
             return null;
         }
         try {
-            var statement = connection.prepareStatement("select type, damage, element, stack_card.card_id, locked, indeck from stack_card " +
+            var statement = connection.prepareStatement("select distinct type, damage, element, stack_card.card_id, locked, indeck from stack_card " +
                     "join card c on stack_card.card_id = c.id " +
                     "join users u on stack_card.user_id = u.id " +
                     "join session s on u.id = s.user_id where token = ?" + (onlyInDeck ? " and indeck = true" : "") + " order by type, damage desc");
